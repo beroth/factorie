@@ -21,8 +21,27 @@ import cc.factorie.app.nlp.{Document=>FactorieDocument}
 // TODO: get trait and implementations for memory- and mongo-backed entity map
 //trait EntityMap extends ... {...}
 
-trait XDocCorefSystem {
-  // TODO
+trait XDocMention[T] {
+  // identifies the document from which this mention came
+  def docPointer:String
+
+  // some representation of the entity used to do XDoc coref
+  def entity:T
+
+  // unique string for this mention
+  def id:String
+
+  // predicted entity id
+  def predictedEnt:Int
+
+  // true entity id
+  def trueEnt:Option[Int]
+}
+
+trait XDocCorefSystem[T] {
+  def generateXDocMentions(doc:FactorieDocument):Iterable[XDocMention[T]]
+
+  def performCoref(mention:Iterator[XDocMention[T]]):Iterable[XDocMention[T]]
 }
 
 trait KbDocuments {
@@ -35,7 +54,12 @@ trait KbDocuments {
 
   // - use xDocMentions table (and maybe doc table)
   // - populates __entityMap
-  def doXDocCoref(em: EntityMap, xcs: XDocCorefSystem)
+  // We should be able to share this implementation between Documents implementations
+  def doXDocCoref[T](em: EntityMap, xcs: XDocCorefSystem[T]) {
+    xcs.performCoref(documents.flatMap(xcs.generateXDocMentions)) foreach { ment =>
+      em.put(ment.id, ment.predictedEnt)
+    }
+  }
 }
 
 class MongoDocuments extends KbDocuments {
@@ -47,9 +71,6 @@ class MongoDocuments extends KbDocuments {
     throw new UnsupportedOperationException
   }
 
-  def doXDocCoref(em: EntityMap, xcs: XDocCorefSystem) {
-    throw new UnsupportedOperationException
-  }
 }
 
 class MemoryDocuments extends KbDocuments {
@@ -61,9 +82,6 @@ class MemoryDocuments extends KbDocuments {
     throw new UnsupportedOperationException
   }
 
-  def doXDocCoref(em: EntityMap, xcs: XDocCorefSystem) {
-    throw new UnsupportedOperationException
-  }
 }
 
 
@@ -89,7 +107,7 @@ class KBMatrix(val matrix:CoocMatrix = new CoocMatrix(0,0),
     new UnsupportedOperationException
   }
 
-  def doXDocCoref(xcs: XDocCorefSystem) {
+  def doXDocCoref[T](xcs: XDocCorefSystem[T]) {
     __docs.doXDocCoref(__entityMap, xcs)
   }
 
