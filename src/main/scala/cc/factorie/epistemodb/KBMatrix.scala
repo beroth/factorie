@@ -63,6 +63,17 @@ trait KBMatrix[KBMatrixT <: KBMatrix[KBMatrixT, RowT, ColT], RowT, ColT] {
     }
   }
 
+  def nnzForCols(testCols: Set[ColT]): Int = {
+    var accumNnz = 0
+    for (col <- testCols) {
+      if (__colMap.containsKey(col)) {
+        val cNr = __colMap.keyToIndex(col)
+        accumNnz += matrix.cols.get(cNr).get.size
+      }
+    }
+    accumNnz
+  }
+
   def hasSameContent(m2: KBMatrixT): Boolean = {
     m2.numRows() == numRows() &&
       m2.numCols() == numCols() &&
