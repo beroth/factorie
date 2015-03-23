@@ -42,6 +42,9 @@ object EntityRelationKBMatrix {
 
   private def entitiesAndRelFromLine(line: String, colsPerEnt:Int): (EntityPair, String, Double) = {
     val parts = line.split("\t")
+    if (parts.length < 2 * colsPerEnt + 2) {
+      throw new IllegalArgumentException("Line specifying matrix cell needs columns for 2 entities, relation, and count.")
+    }
     val e1 : String = parts.slice(0, colsPerEnt).mkString("\t")
     val e2 : String = parts.slice(colsPerEnt, 2 * colsPerEnt).mkString("\t")
     val rel : String = parts.slice(2 * colsPerEnt, parts.length - 1).mkString("\t")
