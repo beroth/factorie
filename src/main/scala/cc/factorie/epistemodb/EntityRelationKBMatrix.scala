@@ -53,14 +53,9 @@ object EntityRelationKBMatrix {
   }
   // Loads a matrix from a tab-separated file
   def fromTsv(filename:String, colsPerEnt:Int = 2) : EntityRelationKBMatrix = {
-
-
-
     val kb = new EntityRelationKBMatrix()
-
     val tReadStart = System.currentTimeMillis
     var numRead = 0
-
     scala.io.Source.fromFile(filename).getLines.foreach(line => {
       val (ep, rel, cellVal) = entitiesAndRelFromLine(line, colsPerEnt)
       kb.set(ep, rel, cellVal)
@@ -73,7 +68,32 @@ object EntityRelationKBMatrix {
         println(f"Last column: (${rel}s)")
         println(f"Last cell value: $cellVal%.4f")
       }
+    })
+    kb
+  }
 
+
+  def fromTsvMongoBacked(mongoDb: DB, filename:String, colsPerEnt:Int = 2) : EntityRelationKBMatrix = {
+
+    val rowMap = new EntityPairMongoMap(mongoDb = mongoDb, collectionPrefix = MongoWritable.ENTITY_ROW_MAP_PREFIX)
+    val colMap = new StringMongoMap(mongoDb = mongoDb, collectionPrefix = MongoWritable.ENTITY_COL_MAP_PREFIX)
+
+    val kb = new EntityRelationKBMatrix(__rowMap = rowMap, __colMap = colMap)
+
+    val tReadStart = System.currentTimeMillis
+    var numRead = 0
+    scala.io.Source.fromFile(filename).getLines.foreach(line => {
+      val (ep, rel, cellVal) = entitiesAndRelFromLine(line, colsPerEnt)
+      kb.set(ep, rel, cellVal)
+
+      numRead += 1
+      if (numRead % 100000 == 0) {
+        val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
+        println(f"cells read per millisecond: $tRead%.4f")
+        println(f"Last row: (${ep.e1}s, ${ep.e2}s)")
+        println(f"Last column: (${rel}s)")
+        println(f"Last cell value: $cellVal%.4f")
+      }
     })
     kb
   }

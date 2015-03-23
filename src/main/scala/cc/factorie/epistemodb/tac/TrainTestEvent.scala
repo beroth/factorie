@@ -3,6 +3,7 @@ package cc.factorie.epistemodb.tac
 import cc.factorie.epistemodb._
 import scala.util.Random
 import scala.Some
+import com.mongodb.{DB, MongoClient}
 
 class TrainTestEventOptions extends cc.factorie.util.DefaultCmdOptions {
   val tacData = new CmdOption("matrix", "", "FILE", "tab separated file with training data")
@@ -12,6 +13,10 @@ class TrainTestEventOptions extends cc.factorie.util.DefaultCmdOptions {
   val testCols = new CmdOption("test-columns", "", "FILE", "file with test columns, line-by-line")
   val nnzTest = new CmdOption("nnz-test", 0.1, "DOUBLE", "non-zero ratio (within test columns) to be used for held out testing")
   val pruning = new CmdOption("pruning", 2, "INT", "pruning threshold: 0: only graph component selection; >=1: pruning with thresholds")
+
+  val mongoHost = new CmdOption("mongo-host","localhost","STRING","host with running mongo db")
+  val mongoPort = new CmdOption("mongo-port", 27017, "INT", "port mongo db is running on")
+  val dbname = new CmdOption("db-name", "tac", "STRING", "name of mongo db to write data into")
 }
 
 /**
@@ -32,8 +37,11 @@ object TrainTestEvent {
 
     println("Number of test rows: " + testCols.size)
 
+    val mongoClient = new MongoClient( opts.mongoHost.value , opts.mongoPort.value )
+    val db:DB = mongoClient.getDB( opts.dbname.value )
+
     val tReadStart = System.currentTimeMillis
-    val kb = EntityRelationKBMatrix.fromTsv(opts.tacData.value, 1).prune(2,1)
+    val kb = EntityRelationKBMatrix.fromTsvMongoBacked(db, opts.tacData.value, 1).prune(2,1)
     val tRead = (System.currentTimeMillis - tReadStart)/1000.0
     println(f"Reading from file and pruning took $tRead%.2f s")
 
