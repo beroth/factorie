@@ -69,7 +69,7 @@ object EntityRelationKBMatrix {
       if (numRead % 100000 == 0) {
         val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
         println(f"cells read per millisecond: $tRead%.4f")
-        println(f"Last row: (${ep._1}s, ${ep._2}s)")
+        println(f"Last row: (${ep.e1}s, ${ep.e2}s)")
         println(f"Last column: (${rel}s)")
         println(f"Last cell value: $cellVal%.4f")
       }
