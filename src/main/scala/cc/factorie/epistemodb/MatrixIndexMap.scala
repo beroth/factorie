@@ -106,7 +106,231 @@ object StringMemoryIndexMap {
   val RELATION = "rel"
 }
 
+
+class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[String] with MongoWritable {
+  private var colMapCollection = mongoDb.getCollection(collectionPrefix)
+
+  def size:Int = {
+    val l:Long = colMapCollection.count()
+    if (l>Int.MaxValue) {
+      throw new IllegalStateException("Too many rows.")
+    }
+    l.toInt
+  }
+
+  def keyToIndex(rel: String): Int = {
+    val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
+    val cursor: DBCursor = colMapCollection.find(query)
+    val colObject: DBObject = cursor.next()
+    colObject.get(StringMemoryIndexMap.COL_ID).asInstanceOf[Int]
+  }
+
+  def indexToKey(index: Int): String = {
+    val query = new BasicDBObject(StringMemoryIndexMap.COL_ID, index)
+    val cursor: DBCursor = colMapCollection.find(query)
+    val colObject: DBObject = cursor.next()
+    colObject.get(StringMemoryIndexMap.RELATION).asInstanceOf[String]
+  }
+
+  def keyIterator: Iterator[String] = {
+    val cursor: DBCursor = colMapCollection.find()
+    cursor.iterator().asScala.map(colObject =>
+      colObject.get(StringMemoryIndexMap.RELATION).asInstanceOf[String])
+  }
+
+  def containsKey(rel: String): Boolean = {
+    val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
+    val cursor: DBCursor = colMapCollection.find(query)
+    cursor.hasNext
+  }
+
+  def put(rel: String, value: Int) {
+    val colObject = new BasicDBObject
+    colObject.put(StringMemoryIndexMap.RELATION, rel)
+    colObject.put(StringMemoryIndexMap.COL_ID, value)
+    colMapCollection.insert(colObject)
+  }
+
+  def add(key: String): Int = {
+    if (containsKey(key)) {
+      keyToIndex(key)
+    } else {
+      val assigned = size
+      put(key, size)
+      assigned
+    }
+  }
+
+  def writeToMongo(mongoDb: DB) {
+    // TODO: copy to other mongo db.
+  }
+
+  def populateFromMongo(otherDb: DB) {
+    // TODO: copy from other mongo db.
+  }
+}
+
+
+
+
+
 case class EntityPair(val e1: String, val e2: String)
+
+
+
+
+
+
+
+
+class EntityPairMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[EntityPair] with MongoWritable {
+  private var rowMapCollection = mongoDb.getCollection(collectionPrefix + "_" + EntityPairMemoryMap.ROWMAP_COLLECTION)
+  private var entityMapCollection = mongoDb.getCollection(collectionPrefix + "_" + EntityPairMemoryMap.ENTITY_COLLECTION)
+  def size:Int = {
+    val l:Long = rowMapCollection.count()
+    if (l>Int.MaxValue) {
+      throw new IllegalStateException("Too many rows.")
+    }
+    l.toInt
+  }
+
+  // TODO: change return type to Long?
+  private def getEidOrCreate(eStr: String): Int = {
+    val query = new BasicDBObject(EntityPairMemoryMap.ENTITY_SURFACE, eStr)
+    val cursor: DBCursor = entityMapCollection.find(query)
+    // TODO: more efficient using findOne?
+    if (cursor.hasNext) {
+      val entityObject: DBObject = cursor.next()
+      val id: Int = entityObject.get(EntityPairMemoryMap.ENTITY_ID).asInstanceOf[Int]
+      //val surface: String = entityObject.get(EntityPairMemoryMap.ENTITY_SURFACE).asInstanceOf[String]
+      if (cursor.hasNext) {
+        throw new IllegalStateException("Entity map must be unique.")
+      }
+      id
+    } else {
+      val id = entityMapCollection.count().toInt
+      val entityObject = new BasicDBObject
+      entityObject.put(EntityPairMemoryMap.ENTITY_ID, id)
+      entityObject.put(EntityPairMemoryMap.ENTITY_SURFACE, eStr)
+      entityMapCollection.insert(entityObject)
+      id // TODO: change return type to Long?
+    }
+  }
+
+  private def getEid(eStr: String): Option[Int] = {
+    val query = new BasicDBObject(EntityPairMemoryMap.ENTITY_SURFACE, eStr)
+    val cursor: DBCursor = entityMapCollection.find(query)
+    // TODO: more efficient using findOne?
+    if (cursor.hasNext) {
+      val entityObject: DBObject = cursor.next()
+      val id: Int = entityObject.get(EntityPairMemoryMap.ENTITY_ID).asInstanceOf[Int]
+      //val surface: String = entityObject.get(EntityPairMemoryMap.ENTITY_SURFACE).asInstanceOf[String]
+      if (cursor.hasNext) {
+        throw new IllegalStateException("Entity map must be unique.")
+      }
+      Some(id)
+    } else {
+      None
+    }
+  }
+
+
+  private def getEStr(id: Int): String = {
+    val query = new BasicDBObject(EntityPairMemoryMap.ENTITY_ID, id)
+    val cursor: DBCursor = entityMapCollection.find(query)
+    // TODO: more efficient using findOne?
+    val entityObject: DBObject = cursor.next()
+    val eStr: String = entityObject.get(EntityPairMemoryMap.ENTITY_SURFACE).asInstanceOf[String]
+    //val surface: String = entityObject.get(EntityPairMemoryMap.ENTITY_SURFACE).asInstanceOf[String]
+    if (cursor.hasNext) {
+      throw new IllegalStateException("Entity map must be unique.")
+    }
+    eStr
+  }
+
+  private def getIntPair(ep: EntityPair): (Int, Int) = {
+    val (id1,id2) = (getEid(ep.e1), getEid(ep.e2))
+    if (id1 != None && id2 != None) {
+      (id1.get, id2.get)
+    } else {
+      throw new IllegalArgumentException("Entity pair not contained: " + ep)
+    }
+  }
+
+  private def getIntPairOrCreate(ep: EntityPair): (Int, Int) = {
+    (getEidOrCreate(ep.e1), getEidOrCreate(ep.e2))
+  }
+
+  def keyToIndex(ep: EntityPair): Int = {
+    val (eId1, eId2) = getIntPair(ep)
+    val query = new BasicDBObject(EntityPairMemoryMap.ENTITY1, eId1).append(EntityPairMemoryMap.ENTITY2, eId2)
+    val cursor: DBCursor = rowMapCollection.find(query)
+    val rowObject: DBObject = cursor.next()
+    rowObject.get(EntityPairMemoryMap.ROW_ID).asInstanceOf[Int]
+  }
+
+  def indexToKey(index: Int): EntityPair = {
+    val query = new BasicDBObject(EntityPairMemoryMap.ROW_ID, index)
+    val cursor: DBCursor = rowMapCollection.find(query)
+    val rowObject: DBObject = cursor.next()
+    val eid1 = rowObject.get(EntityPairMemoryMap.ENTITY1).asInstanceOf[Int]
+    val eid2 = rowObject.get(EntityPairMemoryMap.ENTITY2).asInstanceOf[Int]
+    EntityPair(getEStr(eid1), getEStr(eid2))
+  }
+
+  def keyIterator: Iterator[EntityPair] = {
+    val cursor: DBCursor = rowMapCollection.find()
+    cursor.iterator().asScala.map(rowObject => {
+      val eid1 = rowObject.get(EntityPairMemoryMap.ENTITY1).asInstanceOf[Int]
+      val eid2 = rowObject.get(EntityPairMemoryMap.ENTITY2).asInstanceOf[Int]
+      EntityPair(getEStr(eid1), getEStr(eid2))
+    })
+  }
+
+  def containsKey(ep: EntityPair): Boolean = {
+    val (eId1, eId2) = (getEid(ep.e1), getEid(ep.e2))
+    eId1 != None && eId2 != None && {
+      val query = new BasicDBObject(EntityPairMemoryMap.ENTITY1, eId1.get).append(EntityPairMemoryMap.ENTITY2, eId2.get)
+      val cursor: DBCursor = rowMapCollection.find(query)
+      cursor.hasNext
+    }
+  }
+
+  def put(ep: EntityPair, value: Int) {
+    val ip = getIntPairOrCreate(ep)
+    val rowObject = new BasicDBObject
+    rowObject.put(EntityPairMemoryMap.ENTITY1, ip._1)
+    rowObject.put(EntityPairMemoryMap.ENTITY2, ip._2)
+    rowObject.put(EntityPairMemoryMap.ROW_ID, value)
+    rowMapCollection.insert(rowObject)
+  }
+
+  def add(key: EntityPair): Int = {
+    if (containsKey(key)) {
+      keyToIndex(key)
+    } else {
+      val assigned = size
+      put(key, size)
+      assigned
+    }
+  }
+
+  def writeToMongo(mongoDb: DB) {
+    // TODO: copy to other mongo db.
+  }
+
+  def populateFromMongo(otherDb: DB) {
+    // TODO: copy from other mongo db.
+  }
+}
+
+
+
+
+
+
+
+
 
 class EntityPairMemoryMap(private var _bimap: HashBiMap[(Int, Int), Int] = HashBiMap.create[(Int, Int), Int](),
                           var _entityMap: HashBiMap[String, Int] = HashBiMap.create[String, Int](),

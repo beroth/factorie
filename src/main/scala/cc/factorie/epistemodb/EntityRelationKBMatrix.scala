@@ -12,8 +12,8 @@ import scala.Some
  */
 
 class EntityRelationKBMatrix(val matrix:CoocMatrix = new CoocMatrix(0,0),
-               val __rowMap: EntityPairMemoryMap = new EntityPairMemoryMap(collectionPrefix = MongoWritable.ENTITY_ROW_MAP_PREFIX),
-               val __colMap: StringMemoryIndexMap = new StringMemoryIndexMap(collectionPrefix = MongoWritable.ENTITY_COL_MAP_PREFIX)
+               val __rowMap: MatrixIndexMap[EntityPair] with MongoWritable = new EntityPairMemoryMap(collectionPrefix = MongoWritable.ENTITY_ROW_MAP_PREFIX),
+               val __colMap: MatrixIndexMap[String] with MongoWritable = new StringMemoryIndexMap(collectionPrefix = MongoWritable.ENTITY_COL_MAP_PREFIX)
                               ) extends KBMatrix[EntityRelationKBMatrix, EntityPair, String] with MongoWritable {
 
   def cloneWithNewCells(cells: CoocMatrix): EntityRelationKBMatrix = {
@@ -53,10 +53,23 @@ object EntityRelationKBMatrix {
   }
   // Loads a matrix from a tab-separated file
   def fromTsv(filename:String, colsPerEnt:Int = 2) : EntityRelationKBMatrix = {
+
+
+
     val kb = new EntityRelationKBMatrix()
+
+    val tReadStart = System.currentTimeMillis
+    var numRead = 0
+
     scala.io.Source.fromFile(filename).getLines.foreach(line => {
       val (ep, rel, cellVal) = entitiesAndRelFromLine(line, colsPerEnt)
       kb.set(ep, rel, cellVal)
+
+      if (numRead % 100000) {
+        val tRead = numRead / (double) (System.currentTimeMillis - tReadStart)
+        println("cells read per millisecond: $tRead%.2f")
+      }
+
     })
     kb
   }
