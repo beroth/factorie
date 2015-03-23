@@ -65,8 +65,9 @@ object EntityRelationKBMatrix {
       val (ep, rel, cellVal) = entitiesAndRelFromLine(line, colsPerEnt)
       kb.set(ep, rel, cellVal)
 
-      if (numRead % 100000) {
-        val tRead = numRead / (double) (System.currentTimeMillis - tReadStart)
+      numRead += 1
+      if (numRead % 100000 == 0) {
+        val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
         println("cells read per millisecond: $tRead%.2f")
       }
 
