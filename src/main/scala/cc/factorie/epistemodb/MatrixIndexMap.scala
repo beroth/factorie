@@ -108,6 +108,22 @@ object StringMemoryIndexMap {
 
 
 class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[String] with MongoWritable {
+
+  // TODO: caching
+  /*
+  Cache<Key, Graph> graphs = CacheBuilder.newBuilder()
+    .concurrencyLevel(4)
+    .weakKeys()
+    .maximumSize(10000)
+    .expireAfterWrite(10, TimeUnit.MINUTES)
+    .build(
+        new CacheLoader<Key, Graph>() {
+          public Graph load(Key key) throws AnyException {
+            return createExpensiveGraph(key);
+          }
+        });
+   */
+
   private var colMapCollection = {
     val c = mongoDb.getCollection(collectionPrefix)
     val relQuery = new BasicDBObject(StringMemoryIndexMap.RELATION, 1)
