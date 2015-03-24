@@ -87,6 +87,6 @@ object TrainTestEvent {
     result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
     println("MAP after 200 iterations: " + Evaluator.meanAveragePrecision(result))
 
-    db.dropDatabase()
+    //db.dropDatabase()
   }
 }
