@@ -108,8 +108,12 @@ object StringMemoryIndexMap {
 }
 
 
+
+
+
 class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[String] with MongoWritable {
 
+  val CASH_SIZE = 1000000
   private var colMapCollection = {
     val c = mongoDb.getCollection(collectionPrefix)
     val relQuery = new BasicDBObject(StringMemoryIndexMap.RELATION, 1)
@@ -120,7 +124,7 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
   }
 
   //    asInstanceOf[CacheBuilder[String, Int]].
-  val relToIdCache = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[String, Int]].maximumSize(100000).build(
+  val relToIdCache = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[String, Int]].maximumSize(CASH_SIZE).build(
     new CacheLoader[String, Int]() {
       def load(rel: String) : Int = {
         val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
@@ -130,7 +134,7 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
       }
     })
 
-  val idToRelCache = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[Int, String]].maximumSize(100000).build(
+  val idToRelCache = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[Int, String]].maximumSize(CASH_SIZE).build(
     new CacheLoader[Int, String]() {
       def load(index: Int) : String = {
         val query = new BasicDBObject(StringMemoryIndexMap.COL_ID, index)
@@ -140,11 +144,9 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
       }
     })
 
-  def size:Int = {
+//  def size:Int = {
+  var size:Int = {
     val l:Long = colMapCollection.count()
-    if (l>Int.MaxValue) {
-      throw new IllegalStateException("Too many rows.")
-    }
     l.toInt
   }
 
@@ -163,9 +165,11 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
   }
 
   def containsKey(rel: String): Boolean = {
-    val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
-    val cursor: DBCursor = colMapCollection.find(query)
-    cursor.hasNext
+    relToIdCache.asMap().containsKey(rel) || {
+      val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
+      val cursor: DBCursor = colMapCollection.find(query)
+      cursor.hasNext
+    }
   }
 
   def put(rel: String, value: Int) {
@@ -181,6 +185,10 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
     } else {
       val assigned = size
       put(key, size)
+      if (size==Int.MaxValue) {
+        throw new IllegalStateException("Too many rows.")
+      }
+      size += 1
       assigned
     }
   }
