@@ -3,6 +3,7 @@ package cc.factorie.epistemodb
 import com.google.common.collect.HashBiMap
 import scala.collection.JavaConverters._
 import com.mongodb._
+import com.google.common.cache.{LoadingCache, CacheLoader, CacheBuilder, Cache}
 
 /**
  * Created by beroth on 3/9/15.
@@ -109,21 +110,6 @@ object StringMemoryIndexMap {
 
 class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[String] with MongoWritable {
 
-  // TODO: caching
-  /*
-  Cache<Key, Graph> graphs = CacheBuilder.newBuilder()
-    .concurrencyLevel(4)
-    .weakKeys()
-    .maximumSize(10000)
-    .expireAfterWrite(10, TimeUnit.MINUTES)
-    .build(
-        new CacheLoader<Key, Graph>() {
-          public Graph load(Key key) throws AnyException {
-            return createExpensiveGraph(key);
-          }
-        });
-   */
-
   private var colMapCollection = {
     val c = mongoDb.getCollection(collectionPrefix)
     val relQuery = new BasicDBObject(StringMemoryIndexMap.RELATION, 1)
@@ -132,6 +118,27 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
     c.createIndex(colQuery)
     c
   }
+
+  //    asInstanceOf[CacheBuilder[String, Int]].
+  val relToIdCache = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[String, Int]].maximumSize(100000).build(
+    new CacheLoader[String, Int]() {
+      def load(rel: String) : Int = {
+        val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
+        val cursor: DBCursor = colMapCollection.find(query)
+        val colObject: DBObject = cursor.next()
+        colObject.get(StringMemoryIndexMap.COL_ID).asInstanceOf[Int]
+      }
+    })
+
+  val idToRelCache = CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[Int, String]].maximumSize(100000).build(
+    new CacheLoader[Int, String]() {
+      def load(index: Int) : String = {
+        val query = new BasicDBObject(StringMemoryIndexMap.COL_ID, index)
+        val cursor: DBCursor = colMapCollection.find(query)
+        val colObject: DBObject = cursor.next()
+        colObject.get(StringMemoryIndexMap.RELATION).asInstanceOf[String]
+      }
+    })
 
   def size:Int = {
     val l:Long = colMapCollection.count()
@@ -142,17 +149,11 @@ class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) exte
   }
 
   def keyToIndex(rel: String): Int = {
-    val query = new BasicDBObject(StringMemoryIndexMap.RELATION, rel)
-    val cursor: DBCursor = colMapCollection.find(query)
-    val colObject: DBObject = cursor.next()
-    colObject.get(StringMemoryIndexMap.COL_ID).asInstanceOf[Int]
+    relToIdCache.get(rel)
   }
 
   def indexToKey(index: Int): String = {
-    val query = new BasicDBObject(StringMemoryIndexMap.COL_ID, index)
-    val cursor: DBCursor = colMapCollection.find(query)
-    val colObject: DBObject = cursor.next()
-    colObject.get(StringMemoryIndexMap.RELATION).asInstanceOf[String]
+    idToRelCache.get(index)
   }
 
   def keyIterator: Iterator[String] = {
