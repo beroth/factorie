@@ -108,7 +108,14 @@ object StringMemoryIndexMap {
 
 
 class StringMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[String] with MongoWritable {
-  private var colMapCollection = mongoDb.getCollection(collectionPrefix)
+  private var colMapCollection = {
+    val c = mongoDb.getCollection(collectionPrefix)
+    val relQuery = new BasicDBObject(StringMemoryIndexMap.RELATION, 1)
+    val colQuery = new BasicDBObject(StringMemoryIndexMap.COL_ID, 1)
+    c.createIndex(relQuery)
+    c.createIndex(colQuery)
+    c
+  }
 
   def size:Int = {
     val l:Long = colMapCollection.count()
@@ -184,8 +191,25 @@ case class EntityPair(val e1: String, val e2: String)
 
 
 class EntityPairMongoMap(private var mongoDb: DB, val collectionPrefix: String) extends MatrixIndexMap[EntityPair] with MongoWritable {
-  private var rowMapCollection = mongoDb.getCollection(collectionPrefix + "_" + EntityPairMemoryMap.ROWMAP_COLLECTION)
-  private var entityMapCollection = mongoDb.getCollection(collectionPrefix + "_" + EntityPairMemoryMap.ENTITY_COLLECTION)
+  private var rowMapCollection = {
+    val c = mongoDb.getCollection(collectionPrefix + "_" + EntityPairMemoryMap.ROWMAP_COLLECTION)
+    val rowIdQuery = new BasicDBObject(EntityPairMemoryMap.ROW_ID, 1)
+    val rowEntityQuery = new BasicDBObject(EntityPairMemoryMap.ENTITY1, 1).append(EntityPairMemoryMap.ENTITY2, 1)
+    c.createIndex(rowIdQuery)
+    c.createIndex(rowEntityQuery)
+    c
+  }
+
+  private var entityMapCollection = {
+    val c = mongoDb.getCollection(collectionPrefix + "_" + EntityPairMemoryMap.ENTITY_COLLECTION)
+    val entSurfaceQuery = new BasicDBObject(EntityPairMemoryMap.ENTITY_SURFACE, 1)
+    val entIdQuery = new BasicDBObject(EntityPairMemoryMap.ENTITY_ID, 1)
+    c.createIndex(entSurfaceQuery)
+    c.createIndex(entIdQuery)
+    c
+  }
+
+
   def size:Int = {
     val l:Long = rowMapCollection.count()
     if (l>Int.MaxValue) {

@@ -16,7 +16,7 @@ class TrainTestEventOptions extends cc.factorie.util.DefaultCmdOptions {
 
   val mongoHost = new CmdOption("mongo-host","localhost","STRING","host with running mongo db")
   val mongoPort = new CmdOption("mongo-port", 27017, "INT", "port mongo db is running on")
-  val dbname = new CmdOption("db-name", "tac", "STRING", "name of mongo db to write data into")
+  val dbname = new CmdOption("db-name", "event_tmp", "STRING", "name of mongo db to write data into")
 }
 
 /**
@@ -39,6 +39,7 @@ object TrainTestEvent {
 
     val mongoClient = new MongoClient( opts.mongoHost.value , opts.mongoPort.value )
     val db:DB = mongoClient.getDB( opts.dbname.value )
+    db.dropDatabase()
 
     val tReadStart = System.currentTimeMillis
     val kb = EntityRelationKBMatrix.fromTsvMongoBacked(db, opts.tacData.value, 1).prune(2,1)
@@ -85,5 +86,7 @@ object TrainTestEvent {
 
     result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
     println("MAP after 200 iterations: " + Evaluator.meanAveragePrecision(result))
+
+    db.dropDatabase()
   }
 }
