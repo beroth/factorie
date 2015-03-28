@@ -102,6 +102,28 @@ object StringStringKBMatrix {
     })
     kb
   }
+
+
+  def fromTsv(filename:String, colsPerEnt:Int = 2) : StringStringKBMatrix = {
+    val kb = new StringStringKBMatrix()
+
+    val tReadStart = System.currentTimeMillis
+    var numRead = 0
+    scala.io.Source.fromFile(filename).getLines.foreach(line => {
+      val (ep, rel, cellVal) = entitiesAndRelFromLine(line, colsPerEnt)
+      kb.set(ep, rel, cellVal)
+
+      numRead += 1
+      if (numRead % 100000 == 0) {
+        val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
+        println(f"cells read per millisecond: $tRead%.4f")
+        println(f"Last row: (${ep}s)")
+        println(f"Last column: (${rel}s)")
+        println(f"Last cell value: $cellVal%.4f")
+      }
+    })
+    kb
+  }
 }
 
 
