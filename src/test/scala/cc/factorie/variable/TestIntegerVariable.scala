@@ -10,12 +10,33 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License. */
-package cc.factorie.app.nlp
 
-package object ner {
-  
-  lazy val NER2 = BasicOntonotesNERWSJ
-  
-  val IobConllNerDomain = BioConllNerDomain
+package cc.factorie.variable
 
+import junit.framework._
+
+/** @author Pallika Kanani */
+class TestIntegerVariable extends TestCase with cc.factorie.util.FastLogging {
+
+   def testDiffLists(): Unit = {
+      val initialValue:Int = 100
+      val v = new IntegerVariable(initialValue)
+      val d: DiffList = new DiffList()
+      logger.debug("Initial Value = " + v.intValue)
+      v.set(200)(d)
+      v.set(300)(d)
+      v.set(400)(d)
+      v.set(500)(d)
+      v.set(600)(d)
+      d.reverse.foreach( a => a.undo())
+      assert(v.intValue == initialValue)
+   }
+}
+
+
+object TestIntegerVariable extends TestSuite {
+  addTestSuite(classOf[TestIntegerVariable])
+  def main(args: Array[String]) {
+    junit.textui.TestRunner.run(this)
+  }
 }

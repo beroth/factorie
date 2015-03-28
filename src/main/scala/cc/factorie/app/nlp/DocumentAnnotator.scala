@@ -16,12 +16,8 @@ import cc.factorie.app.nlp.phrase.Phrase
 import cc.factorie.util.{Cubbie, Threading}
 import cc.factorie.app.nlp.coref.Mention
 import scala.reflect.ClassTag
-import cc.factorie.app.nlp.pos.PennPosTag
-import java.util.Date
-import scala.util.Random
-import cc.factorie.variable.DiffList
 
-trait DocumentAnnotator {
+trait DocumentAnnotator extends Serializable {
   def process(document: Document): Document  // NOTE: this method may mutate and return the same document that was passed in
   def prereqAttrs: Iterable[Class[_]]
   def postAttrs: Iterable[Class[_]]
@@ -56,3 +52,25 @@ object NoopDocumentAnnotator extends DocumentAnnotator {
   def tokenAnnotationString(token: Token) = null
 }
 
+/** A Document Annotator that asserts that an annotation is present and does nothing */
+class CheckingDocumentAnnotator[Anno](implicit ct:ClassTag[Anno]) extends DocumentAnnotator {
+  def tokenAnnotationString(token: Token) = null
+
+  def postAttrs = Seq(ct.runtimeClass)
+
+  def prereqAttrs = Seq.empty[Class[_]]
+
+  def process(document: Document) = {
+    require(document.annotators.keySet.contains(ct.runtimeClass))
+    document
+  }
+}
+
+class CompoundDocumentAnnotator(val annos:Seq[DocumentAnnotator]) extends DocumentAnnotator {
+  def tokenAnnotationString(token: Token) = annos.map(anno => Option(anno.tokenAnnotationString(token))).mkString("\t")
+
+  lazy val prereqAttrs = annos.flatMap(_.prereqAttrs).toSet diff postAttrs
+  lazy val postAttrs = annos.flatMap(_.postAttrs).toSet
+
+  def process(document: Document) = annos.foldLeft(document){case (doc, anno) => anno process doc}
+}
