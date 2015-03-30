@@ -62,7 +62,7 @@ class UniversalSchemaModel(val rowVectors: IndexedSeq[DenseTensor1], val colVect
   }
 
   def getScoredColumns(v: DenseTensor1): Iterable[(Int, Double)] = {
-    throw new UnsupportedOperationException
+    colVectors.indices.map(i => (i, similarity01(v, colVectors(i)) ))
   }
 
   def getScoredRows(v: DenseTensor1): Iterable[(Int, Double)] = {

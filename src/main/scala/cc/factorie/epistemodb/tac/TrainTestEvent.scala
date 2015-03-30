@@ -13,6 +13,9 @@ class TrainTestEventOptions extends cc.factorie.util.DefaultCmdOptions {
   val testCols = new CmdOption("test-columns", "", "FILE", "file with test columns, line-by-line")
   val nnzTest = new CmdOption("nnz-test", 0.1, "DOUBLE", "non-zero ratio (within test columns) to be used for held out testing")
   val pruning = new CmdOption("pruning", 2, "INT", "pruning threshold: 0: only graph component selection; >=1: pruning with thresholds")
+  val prunedMatrixOut = new CmdOption("matrix-out", "", "FILE", "Tab separated file with pruned data, to be written out.")
+  val patternsOut = new CmdOption("patterns-out", "", "FILE", "Top-scored columns, for test columns.")
+  val patternsThreshold = new CmdOption("patterns-threshold", 0.5, "DOUBLE", "Threshold for writing out patterns.")
 
   //val mongoHost = new CmdOption("mongo-host","localhost","STRING","host with running mongo db")
   //val mongoPort = new CmdOption("mongo-port", 27017, "INT", "port mongo db is running on")
@@ -54,6 +57,10 @@ object TrainTestEvent {
 
     println("Number of potential test cells:" + kb.nnzForCols(testCols))
 
+    if (!opts.prunedMatrixOut.value.isEmpty) {
+      kb.writeToTsvFile(opts.prunedMatrixOut.value)
+    }
+
     val random = new Random(0)
     val numDev = 0
     val numTest = (kb.nnzForCols(testCols) * opts.nnzTest.value).toInt
@@ -75,18 +82,22 @@ object TrainTestEvent {
 
     trainer.train(40)
 
-    result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
-    println("MAP after 50 iterations: " + Evaluator.meanAveragePrecision(result))
+    //result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
+    //println("MAP after 50 iterations: " + Evaluator.meanAveragePrecision(result))
 
     trainer.train(50)
 
     result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
     println("MAP after 100 iterations: " + Evaluator.meanAveragePrecision(result))
 
-    trainer.train(100)
+    //trainer.train(100)
 
-    result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
-    println("MAP after 200 iterations: " + Evaluator.meanAveragePrecision(result))
+    //result = model.similaritiesAndLabels(trainKb.matrix, testKb.matrix)
+    //println("MAP after 200 iterations: " + Evaluator.meanAveragePrecision(result))
+
+    // TODO:
+    //val thresholds = Evaluator.tuneThresholdsMicroAvgF1Score(result)
+    kb.writeTopPatterns(testCols, model, opts.patternsThreshold.value, opts.patternsOut.value)
 
     //db.dropDatabase()
   }

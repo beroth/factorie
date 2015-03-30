@@ -2,6 +2,7 @@ package cc.factorie.epistemodb
 
 import com.mongodb._
 import scala.Some
+import java.io.File
 
 /**
  * Created by beroth on 2/6/15.
@@ -61,6 +62,34 @@ class StringStringKBMatrix(val matrix:CoocMatrix = new CoocMatrix(0,0),
     matrix.populateFromMongo(mongoDb)
     __rowMap.populateFromMongo(mongoDb)
     __colMap.populateFromMongo(mongoDb)
+  }
+
+  def writeToTsvFile(filename: String) {
+    val pw = new java.io.PrintWriter(new File(filename))
+    for (rowStr <- this.__rowMap.keyIterator) {
+      for (colStr <- this.getColsForRow(rowStr)) {
+        val count = this.get(rowStr, colStr)
+        pw.println(f"$rowStr%s\t$colStr%s\t$count%.4f")
+      }
+    }
+    pw.close()
+  }
+
+  def writeTopPatterns(testCols: Set[String], model: UniversalSchemaModel, threshold: Double, filename: String) {
+    val pw = new java.io.PrintWriter(new File(filename))
+    for (testColStr <- testCols) {
+      val testColIdx = this.__colMap.keyToIndex(testColStr)
+      val testColVec = model.colVectors(testColIdx)
+      model.getScoredColumns(testColVec).
+        filter(_._2 > threshold).
+        map(idxScore => (this.__colMap.indexToKey(idxScore._1), idxScore._2)). // map col index to surface form
+        filter(strScore => !testCols.contains(strScore._1)).foreach(strScore => {
+        val pattern = strScore._1
+        val score = strScore._2
+        pw.println(f"$score%.4f\t$testColStr%s\t$pattern%s")
+      })
+    }
+    pw.close()
   }
 }
 
