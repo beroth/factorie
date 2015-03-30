@@ -38,7 +38,16 @@ class UniversalSchemaModel(val rowVectors: IndexedSeq[DenseTensor1], val colVect
       case None => testMatrix.nonZeroCols()
     }
 
-    {for (col <- columns) yield {
+    columns.par.map(col => {
+      val scores = {for (row <- (0 until testMatrix.numRows());
+                         if trainDevMatrix.get(row, col) == 0) yield {
+        val sim = similarity01(rowVectors(row), colVectors(col))
+        val isTrueTest = testMatrix.get(row, col) != 0
+        (sim, isTrueTest)
+      }}.toSeq
+      (col, scores)
+    }).toMap.seq
+    /*{for (col <- columns) yield {
       val scores = {for (row <- (0 until testMatrix.numRows());
       if trainDevMatrix.get(row, col) == 0) yield {
         val sim = similarity01(rowVectors(row), colVectors(col))
@@ -46,7 +55,7 @@ class UniversalSchemaModel(val rowVectors: IndexedSeq[DenseTensor1], val colVect
         (sim, isTrueTest)
       }}.toSeq
       (col, scores)
-    }}.toMap
+    }}.toMap*/
   }
 
   def similaritiesAndLables(testMatrix: CoocMatrix, cells: Map[Int, Seq[Int]]):

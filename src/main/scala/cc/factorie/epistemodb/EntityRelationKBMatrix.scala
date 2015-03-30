@@ -77,7 +77,10 @@ class StringStringKBMatrix(val matrix:CoocMatrix = new CoocMatrix(0,0),
 
   def writeTopPatterns(testCols: Set[String], model: UniversalSchemaModel, threshold: Double, filename: String) {
     val pw = new java.io.PrintWriter(new File(filename))
-    for (testColStr <- testCols) {
+    for (testColStr <- testCols;
+    if (__colMap.containsKey(testColStr) &&
+      matrix.nonZeroCols().contains(__colMap.keyToIndex(testColStr)))
+    ) {
       val testColIdx = this.__colMap.keyToIndex(testColStr)
       val testColVec = model.colVectors(testColIdx)
       model.getScoredColumns(testColVec).
