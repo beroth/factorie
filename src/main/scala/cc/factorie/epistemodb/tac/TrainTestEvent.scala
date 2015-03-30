@@ -46,7 +46,7 @@ object TrainTestEvent {
 
     val tReadStart = System.currentTimeMillis
 //    val kb = StringStringKBMatrix.fromTsvMongoBacked(db, opts.tacData.value, 1).prune(2,1)
-    val kb = StringStringKBMatrix.fromTsv(opts.tacData.value, 1).prune(2,1)
+    val kb = StringStringKBMatrix.fromTsv(opts.tacData.value, 1).prune(opts.pruning.value, opts.pruning.value)
     val tRead = (System.currentTimeMillis - tReadStart)/1000.0
     println(f"Reading from file and pruning took $tRead%.2f s")
 
