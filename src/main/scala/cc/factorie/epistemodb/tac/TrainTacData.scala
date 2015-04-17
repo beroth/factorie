@@ -21,6 +21,9 @@ class TrainTacDataOptions extends cc.factorie.util.DefaultCmdOptions {
   val relations = new CmdOption("relations", "", "FILE", "Relations for which patterns are to be written out.")
   val patternsOut = new CmdOption("patterns-out", "", "FILE", "Top-scored columns, for test columns.")
 
+  val colTreshold = new CmdOption("col-threshold", 2, "FILE", "Column threshold for tuning.")
+  val rowThreshold = new CmdOption("row-threshold", 2, "FILE", "Row threshold for tuning.")
+
   val relationEmbeddingsOut = new CmdOption("relation-embeddings-out", "", "FILE", "Top-scored columns, for test columns.")
   val patternEmbeddingsOut = new CmdOption("pattern-embeddings-out", "", "FILE", "Top-scored columns, for pattern columns.")
 }
