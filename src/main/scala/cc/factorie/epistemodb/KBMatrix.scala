@@ -122,7 +122,10 @@ trait KBMatrix[KBMatrixT <: KBMatrix[KBMatrixT, RowT, ColT], RowT, ColT] {
     (trainKB, devKB, testKB)
   }
 
-  /* use prune(0,0) for no pruning
+  /*
+ * The pruning parameters specify the number of non-zero cells per row / column up to which rows/columns are disregarded.
+ *
+ * use prune(0,0) for no pruning
  * use prune(2,1) for moderate pruning on kb matrices
  */
   def prune(tRow: Int = 2, tCol: Int = 2): KBMatrixT = {

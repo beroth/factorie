@@ -2,7 +2,7 @@ package cc.factorie.epistemodb
 
 import com.mongodb._
 import scala.Some
-import java.io.File
+import java.io.{Writer, File}
 
 /**
  * Created by beroth on 2/6/15.
@@ -93,6 +93,21 @@ class StringStringKBMatrix(val matrix:CoocMatrix = new CoocMatrix(0,0),
       })
     }
     pw.close()
+  }
+
+  def writeColumnEmbeddings(model: UniversalSchemaModel, writer: Writer, constrainTo: Option[Iterable[String]] = None,
+                            dontWrite: Set[String] = Set()) {
+    val colIds: Iterable[Int] = constrainTo match {
+      case Some(ids) => ids.map(id => __colMap.keyToIndex(id))
+      case None => Range(0, __colMap.size)
+    }
+    for (colId <- colIds) {
+      val relStr = __colMap.indexToKey(colId)
+      if (!dontWrite.contains(relStr)) {
+        val vecStr = model.colVectors(colId).mkString(" ")
+        writer.write(relStr + "\t" + vecStr + "\n")
+      }
+    }
   }
 }
 
