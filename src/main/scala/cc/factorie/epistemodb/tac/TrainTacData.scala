@@ -49,7 +49,7 @@ object TrainTacData {
         kb.matrix, model, random)
     trainer.train(opts.iters.value)
     val testCols = Source.fromFile(opts.relations.value).getLines().toSet
-    kb.writeTopPatterns(testCols, model, opts.scoreTreshold, opts.patternsOut.value)
+    kb.writeTopPatterns(testCols, model, opts.scoreTreshold.value, opts.patternsOut.value)
 
     val relationVectorsWriter = new PrintWriter(new OutputStreamWriter(
       new GZIPOutputStream(new FileOutputStream(opts.relationEmbeddingsOut.value), 65536), "UTF-8"))
