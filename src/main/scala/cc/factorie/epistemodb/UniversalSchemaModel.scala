@@ -108,10 +108,15 @@ class UniversalSchemaModel(val rowVectors: IndexedSeq[DenseTensor1], val colVect
 
   def columnToExpectedRankingGain(matrix: CoocMatrix, targetColumn: Int, antecedentMinFreq: Int): Map[Int,Double] = {
     val colToExpectedGain = new mutable.HashMap[Int, Double]()
+
+    val targetRows = matrix.colToRows.getOrElse(targetColumn, Set[Int]())
+
     matrix.colToRows.foreach(colEntries => {
       val antecedent = colEntries._1
       val antecendentRows = colEntries._2
       if (antecendentRows.size >= antecedentMinFreq) {
+
+        /*
         val targetScores: Seq[(Int, Double)] = rowsToScore(matrix, targetColumn, ignoreObservedCells = true)
         val targetAndRerankedScores: Seq[(Double, Double)] = targetScores.map(rowScore => {
           val row = rowScore._1
@@ -123,10 +128,20 @@ class UniversalSchemaModel(val rowVectors: IndexedSeq[DenseTensor1], val colVect
           (oldScore, newScore)
         })
         val ranks = Evaluator.ranksFromValues(targetAndRerankedScores)
-        val rankingDifference = 0.5 + Evaluator.spearmansRankCorrelation(ranks) / 2.0
+        val rankingDifference = 0.5 - Evaluator.spearmansRankCorrelation(ranks) / 2.0
+
+
         // TODO: sigmoid
         val pCorrect = similarity01(colVectors(antecedent), colVectors(targetColumn))
         val expectedGain = pCorrect * rankingDifference
+        */
+        val pCorrect = similarity01(colVectors(antecedent), colVectors(targetColumn))
+
+        if (antecedent == targetColumn) {
+          println("size for antecedent == targetColumn:" + antecendentRows.filterNot(x => targetRows.contains(x)).size)
+        }
+
+        val expectedGain = pCorrect * antecendentRows.filterNot(x => targetRows.contains(x)).size
         colToExpectedGain.put(antecedent, expectedGain)
       }
     })
@@ -134,35 +149,44 @@ class UniversalSchemaModel(val rowVectors: IndexedSeq[DenseTensor1], val colVect
   }
 
 
-
-/*
-  def columnToScore(matrix: CoocMatrix, targetColumn: Int, antecedentMinFreq: Int): Map[Int,Double] = {
-    val colToExpectedGain = new mutable.HashMap[Int, Double]()
-    matrix.colToRows.filterNot(_ == targetColumn).foreach(colEntries => {
-      val antecedent = colEntries._1
-      val antecendentRows = colEntries._2
-      if (antecedent != targetColumn && antecendentRows.size >= antecedentMinFreq) {
-        val pCorrect = similarity01(colVectors(antecedent), colVectors(targetColumn))
-        colToExpectedGain.put(antecedent, pCorrect)
-      }
-    })
-    colToExpectedGain.toMap
-  }
-
-  def columnToFreq(matrix: CoocMatrix, targetColumn: Int, antecedentMinFreq: Int): Map[Int,Double] = {
-    val colToExpectedGain = new mutable.HashMap[Int, Double]()
+  def columnToSimilarity(matrix: CoocMatrix, targetColumn: Int, antecedentMinFreq: Int): Map[Int,Double] = {
+    val colToSim = new mutable.HashMap[Int, Double]()
     matrix.colToRows.foreach(colEntries => {
       val antecedent = colEntries._1
       val antecendentRows = colEntries._2
-      if (antecedent != targetColumn && antecendentRows.size >= antecedentMinFreq) {
-        colToExpectedGain.put(antecedent, antecendentRows.size)
+      if (antecendentRows.size >= antecedentMinFreq) {
+        val pCorrect = similarity01(colVectors(antecedent), colVectors(targetColumn))
+        colToSim.put(antecedent, pCorrect)
       }
     })
-    colToExpectedGain.toMap
+    colToSim.toMap
   }
-*/
 
-
+  def columnToChange(matrix: CoocMatrix, targetColumn: Int, antecedentMinFreq: Int): Map[Int,Double] = {
+    val colToChange = new mutable.HashMap[Int, Double]()
+    matrix.colToRows.foreach(colEntries => {
+      val antecedent = colEntries._1
+      val antecendentRows = colEntries._2
+      if (antecendentRows.size >= antecedentMinFreq) {
+        /*
+        val targetScores: Seq[(Int, Double)] = rowsToScore(matrix, targetColumn, ignoreObservedCells = true)
+        val targetAndRerankedScores: Seq[(Double, Double)] = targetScores.map(rowScore => {
+          val row = rowScore._1
+          val oldScore = rowScore._2
+          val antecedentHasEntry = antecendentRows.contains(row)
+          // Since ignoreObservedCells = true, target has no entry
+          // Increase the value for the target column here => annotated cells get ranked higher.
+          val newScore = if (antecedentHasEntry) oldScore + 1.0 else oldScore
+          (oldScore, newScore)
+        })
+        val ranks = Evaluator.ranksFromValues(targetAndRerankedScores)
+        val rankingDifference = 0.5 - Evaluator.spearmansRankCorrelation(ranks) / 2.0
+        colToChange.put(antecedent, rankingDifference)*/
+        colToChange.put(antecedent, antecendentRows.size)
+      }
+    })
+    colToChange.toMap
+  }
 
   def getScoredColumns(v: DenseTensor1): Iterable[(Int, Double)] = {
     colVectors.indices.map(i => (i, similarity01(v, colVectors(i)) ))
