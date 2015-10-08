@@ -1,11 +1,13 @@
 package cc.factorie.epistemodb.activelearning
 
-import cc.factorie.epistemodb.{Evaluator, RegularizedBprUniversalSchemaTrainer, UniversalSchemaModel, CoocMatrix}
+import cc.factorie.epistemodb._
 import scala.util.Random
 import scala.Some
+import scala.Some
 
-class ModelEvaluator(val name: String) {
+class ModelEvaluator(val name: String, val ruleBased: Boolean = false) {
   var results = List[Double]()
+  var resultsGAP = List[Double]()
   var rulesApplied = List[Double]()
   var cellsFilledCorrect = List[Double]()
   var cellsFilledIncorrect = List[Double]()
@@ -15,18 +17,65 @@ class ModelEvaluator(val name: String) {
   var filledCellsIfNotHolds = 0.0
 
   var model: UniversalSchemaModel = null
-  var trainer: RegularizedBprUniversalSchemaTrainer = null
+  var trainer: BprTrainer = null// RegularizedBprUniversalSchemaTrainer = null
   var mTrain: CoocMatrix = null
 
   def initModel(trainMatrix: CoocMatrix, dim: Int = 10, regularizer: Double = 0.01, stepsize: Double = 0.1, seed: Int = 0): Unit = {
     mTrain = trainMatrix.copy()
     model = UniversalSchemaModel.randomModel(mTrain.numRows(), mTrain.numCols(), dim, new Random(seed))
-    trainer = new RegularizedBprUniversalSchemaTrainer(regularizer, stepsize, dim, mTrain, model, new Random(seed))
+    trainer = if (ruleBased) {
+      new RuleBprTrainer(regularizer, stepsize, dim, mTrain, model, new Random(seed), Seq[(Int, Int)]() )
+      //new RegularizedBprRowAndColumnUniversalSchemaTrainer(regularizer, stepsize, dim, mTrain, model, new Random(seed))
+    } else {
+      new RegularizedBprUniversalSchemaTrainer(regularizer, stepsize, dim, mTrain, model, new Random(seed))
+    }
   }
 
-  def meanAveragePrecision(testMatrix: CoocMatrix): Double = {
-    val inititalResultGoldAnno = model.similaritiesAndLabels(mTrain, testMatrix)
-    Evaluator.meanAveragePrecision(inititalResultGoldAnno)
+  def proposeRulesBySimilarity(testCols: Iterable[Int], numRulesPerTarget: Int) : Seq[(Int, Int)] = {
+    testCols.flatMap(targetIdx => {
+      model.columnToSimilarity(mTrain, targetIdx, 2).toSeq.
+        sortBy(-_._2).slice(0,numRulesPerTarget).map(antecedent => (antecedent._1, targetIdx))
+    }).toSeq
+  }
+
+  def meanAveragePrecision(originalTrainMatrix: CoocMatrix, testMatrix: CoocMatrix): Double = {
+    val initialResultGoldAnno = model.similaritiesAndLabels(originalTrainMatrix, testMatrix)
+    Evaluator.meanAveragePrecision(initialResultGoldAnno)
+  }
+
+  def globalAveragePrecision(originalTrainMatrix: CoocMatrix, testMatrix: CoocMatrix): Double = {
+    val initialResultGoldAnno = model.similaritiesAndLabels(originalTrainMatrix, testMatrix)
+    Evaluator.globalAveragePrecision(initialResultGoldAnno)
+  }
+
+  def judgeRules(antecedentsTargets: Seq[(Int, Int)], numTopics: Int):  Seq[(Int, Int)] = {
+    antecedentsTargets.filter(rule => (rule._1 % numTopics) == (rule._2 % numTopics))
+  }
+
+  def annotateHardConstraints(antecedentsTargets: Seq[(Int, Int)], numTopics: Int): Unit = {
+
+    for (antecTarget <- antecedentsTargets) {
+      val antecedentIdx = antecTarget._1
+      val targetIdx = antecTarget._2
+      val relationHolds = ((antecedentIdx % numTopics) == (targetIdx % numTopics))
+      if (relationHolds) {
+        acceptedRules += 1
+        for(row <- mTrain.colToRows.get(antecedentIdx).get) {
+          // Get all nnz rows for antecedent
+          val antecedentVal = mTrain.get(row, antecedentIdx)
+          if (antecedentVal == 1) {
+            if (antecedentVal > mTrain.get(row, targetIdx)) {
+              mTrain.set(row, targetIdx, antecedentVal)
+              if (row % numTopics == antecedentIdx % numTopics) {
+                filledCellsIfHolds += 1
+              } else {
+                filledCellsIfNotHolds += 1
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   def annotateHardConstraints(antecedents: Seq[Int], targetIdx: Int, numTopics: Int): Unit = {
@@ -52,8 +101,9 @@ class ModelEvaluator(val name: String) {
     }
   }
 
-  def evaluateAndAggregate(testMatrix: CoocMatrix) : Unit = {
-    results = meanAveragePrecision(testMatrix) :: results
+  def evaluateAndAggregate(originalTrainMatrix: CoocMatrix, testMatrix: CoocMatrix) : Unit = {
+    results = meanAveragePrecision(originalTrainMatrix, testMatrix) :: results
+    resultsGAP = globalAveragePrecision(originalTrainMatrix, testMatrix) :: resultsGAP
     rulesApplied = acceptedRules :: rulesApplied
     cellsFilledCorrect = filledCellsIfHolds :: cellsFilledCorrect
     cellsFilledIncorrect = filledCellsIfNotHolds :: cellsFilledIncorrect
@@ -99,12 +149,15 @@ object SyntheticActiveLearningExperiments {
     val numDevNNZ = 0
     val numTestNNZ = 0//150
 
+    val numIters = 50
+
     // Test matrix is constructed following underlying pattern.
     val mTest = new CoocMatrix(numRows, numCols)
     val testCols = Set(0,1,2,3,4,5,6,7,8,9)
     for (col <- testCols) {
       for (row <- Range(0, numRows)) {
         if (row % numTopics == col % numTopics) {
+          println("set " + row + " - " + col)
           mTest.set(row, col, 1.0)
         }
       }
@@ -112,12 +165,20 @@ object SyntheticActiveLearningExperiments {
 
     val evaluatorGold = new ModelEvaluator("Gold Annotation")
     val evaluatorAnno = new ModelEvaluator("Rule-based Annotation")
+
+    val evaluatorAnnoRuleTraining = new ModelEvaluator("Rule-based Annotation / Rule-based training", true)
+
     val evaluatorRandom = new ModelEvaluator("Random Annotation")
     val evaluatorNoAnno = new ModelEvaluator("No Annotation")
+    val evaluatorNoAnnoRowCol = new ModelEvaluator("No Annotation / Row and Col Training", true)
+
     val evaluatorSimilarity = new ModelEvaluator("Similarity-based Annotation")
     val evaluatorChange = new ModelEvaluator("Change-based Annotation")
 
-    val evaluators = Seq(evaluatorGold, evaluatorAnno, evaluatorRandom, evaluatorNoAnno, evaluatorSimilarity, evaluatorChange)
+//    val evaluators = Seq(evaluatorGold, evaluatorAnno, evaluatorAnnoRuleTraining, evaluatorRandom, evaluatorNoAnno, evaluatorNoAnnoRowCol, evaluatorSimilarity, evaluatorChange)
+    ///Seq(evaluatorGold, evaluatorRandom, evaluatorNoAnno, evaluatorNoAnnoRowCol, evaluatorSimilarity, evaluatorChange).foreach(_.initModel(mTrain, seed = seedForModels))
+
+    val evaluators = Seq(evaluatorAnno, evaluatorAnnoRuleTraining)
 
     var numRulesProposed = 10
 
@@ -131,17 +192,22 @@ object SyntheticActiveLearningExperiments {
 
       val seedForModels = random.nextInt()
 
+      // TODO
+      Seq(evaluatorGold, evaluatorRandom, evaluatorNoAnno, evaluatorNoAnnoRowCol, evaluatorSimilarity, evaluatorChange).foreach(_.initModel(mTrain, seed = seedForModels))
+
       evaluators.foreach(ev => {
         ev.initModel(mTrain, seed = seedForModels)
-        ev.trainer.train(10)
-        println("\nInitial "+ ev.name +": " + ev.meanAveragePrecision(mTest) + "\n")
+        ev.trainer.train(numIters)
+        println("\nInitial "+ ev.name +": " + ev.meanAveragePrecision(mTrain, mTest) + "\n")
       })
 
       for (targetIdx <- testCols) {
         println("current target column: " + targetIdx)
 
-        for(row <- Range(0, evaluatorGold.mTrain.numRows())) {
+
+        for(row <- Range(0, numRows)) {
           if (row % numTopics == targetIdx % numTopics) {
+            println("set " + row + " - " + targetIdx)
             evaluatorGold.mTrain.set(row, targetIdx, 1.0)
           }
         }
@@ -149,6 +215,7 @@ object SyntheticActiveLearningExperiments {
         val annoAntecedents = evaluatorAnno.model.columnToExpectedRankingGain(evaluatorAnno.mTrain, targetIdx, 2).
           toSeq.sortBy(-_._2).slice(0,numRulesProposed)
         evaluatorAnno.annotateHardConstraints(annoAntecedents.map(_._1), targetIdx, numTopics)
+
 
         val similarAntecedents = evaluatorSimilarity.model.columnToSimilarity(evaluatorSimilarity.mTrain, targetIdx, 2).
           toSeq.sortBy(-_._2).slice(0,numRulesProposed)
@@ -170,6 +237,10 @@ object SyntheticActiveLearningExperiments {
         println("similarity: " + similarAntecedents)
       }
 
+      val proposedRules = evaluatorAnnoRuleTraining.proposeRulesBySimilarity(testCols, numRulesProposed)
+      evaluatorAnnoRuleTraining.annotateHardConstraints(proposedRules, numTopics)
+      evaluatorAnnoRuleTraining.trainer.asInstanceOf[RuleBprTrainer].rules = evaluatorAnnoRuleTraining.judgeRules(proposedRules, numTopics)
+
       evaluators.foreach(ev => {
         println(ev.name)
         println("Antecedent cells following pattern: " + ev.filledCellsIfHolds)
@@ -177,10 +248,15 @@ object SyntheticActiveLearningExperiments {
         println("===")
       })
 
+      /*
+      evaluators.foreach(ev => {
+        println("\nBefore training: "+ ev.name +": " + ev.meanAveragePrecision(mTrain, mTest) + "\n")
+      })
+*/
       evaluators.foreach(ev => {
         println("training: " + ev.name)
-        ev.trainer.train(10)
-        ev.evaluateAndAggregate(mTest)
+        ev.trainer.train(numIters)
+        ev.evaluateAndAggregate(mTrain, mTest)
         println("last map: " + ev.results(0))
         println("===")
       })
@@ -191,10 +267,14 @@ object SyntheticActiveLearningExperiments {
     evaluators.foreach(ev => {
       println(ev.name)
       println("map: " + meanAndStandardError(ev.results))
+      println("global ap: " + meanAndStandardError(ev.resultsGAP))
       println("rules applied: " + meanAndStandardError(ev.rulesApplied))
       println("Cells correctly filled: " + meanAndStandardError(ev.cellsFilledCorrect))
       println("Cells incorrectly filled: " + meanAndStandardError(ev.cellsFilledIncorrect))
       println("===")
     })
+
+    println(evaluatorGold.results)
+    println(evaluatorAnno.results)
   }
 }

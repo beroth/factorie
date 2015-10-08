@@ -45,8 +45,8 @@ object Evaluator {
   }
 
   // convenience method
-  def averagePrecision(classToPredictionAndLabel: Map[Int, Seq[(Double, Boolean)]]): Double = {
-    throw new UnsupportedOperationException
+  def globalAveragePrecision(classToPredictionAndLabel: Map[Int, Seq[(Double, Boolean)]]): Double = {
+    averagePrecision(classToPredictionAndLabel.values.flatten.toSeq)
   }
 
   /**
