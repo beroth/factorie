@@ -32,9 +32,45 @@ object DataFromWikipedia {
     }
   }
 
-  def rightPatterns(sentence: Sentence, token: Token): Seq[String] = {
+  def adjPatterns(token: Token): Seq[String] = {
+    val tokenBuf = new ArrayBuffer[Token]
+    var adjChain = true
+    for(i <- 1 to 3;
+        if (token.hasPrev(i) && adjChain)
+    ) {
+      val prevTok = token.prev(i)
+      if (prevTok.posTag.categoryValue.startsWith("JJ")) {
+        tokenBuf += prevTok
+      } else {
+        adjChain = false
+      }
+    }
 
-    ???
+    if (adjChain && tokenBuf.length > 0) {
+      Seq(tokenBuf.reverse.map(_.string).mkString(" ") + " ARG")
+    } else {
+      Seq()
+    }
+  }
+
+  def rightPatterns(token: Token): Seq[String] = {
+    val tokenBuf = new ArrayBuffer[Token]
+    var patternComplete = false
+    for(i <- 1 to 5;
+        if (token.hasNext(i) && !patternComplete)
+    ) {
+      val nextTok = token.next(i)
+      tokenBuf += nextTok
+      if (nextTok.posTag.categoryValue.startsWith("VB")) {
+        patternComplete = true
+      }
+    }
+
+    if (patternComplete) {
+      Seq("ARG " + tokenBuf.map(_.string).mkString(" "))
+    } else {
+      Seq()
+    }
   }
 
   def getNounsAndPatterns(sentence: Sentence): /*Seq[String]*/Seq[(String, Seq[String])] = {
@@ -58,7 +94,8 @@ object DataFromWikipedia {
       }
     })._2.filter(_.length <= 3)
 
-    nouns.map(tokBuf => (tokBuf.mkString(" "), leftPatterns(tokBuf.head) )).toSeq
+    nouns.map(tokBuf => (tokBuf.map(_.string).mkString(" "),
+      leftPatterns(tokBuf.head) ++ rightPatterns(tokBuf.head) ++ adjPatterns(tokBuf.head) )).toSeq
   }
 
   def main(args: Array[String]) : Unit = {
