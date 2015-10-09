@@ -46,7 +46,7 @@ object DataFromWikipedia {
       }
     }
 
-    if (adjChain && tokenBuf.length > 0) {
+    if (tokenBuf.length > 0) {
       Seq(tokenBuf.reverse.map(_.string).mkString(" ") + " ARG")
     } else {
       Seq()
@@ -95,7 +95,7 @@ object DataFromWikipedia {
     })._2.filter(_.length <= 3)
 
     nouns.map(tokBuf => (tokBuf.map(_.string).mkString(" "),
-      leftPatterns(tokBuf.head) ++ rightPatterns(tokBuf.head) ++ adjPatterns(tokBuf.head) )).toSeq
+      leftPatterns(tokBuf.head) ++ rightPatterns(tokBuf.last) ++ adjPatterns(tokBuf.head) )).toSeq
   }
 
   def main(args: Array[String]) : Unit = {
@@ -107,8 +107,9 @@ object DataFromWikipedia {
           val tokens = s.tokens
           val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
           println(sString)
-          for (n <- getNounsAndPatterns(s)) {
-            println(n)
+          for ((noun, patterns) <- getNounsAndPatterns(s);
+          pat <- patterns) {
+            println(noun + "\t" + pat)
           }
         }
     }
