@@ -17,12 +17,15 @@ object DataFromWikipedia {
 
         for (s <- f.sentences) {
           val tokens = s.tokens
-          val posTags = s.posTags
+          val sString = tokens.map(tok => tok.string + "/" + tok.posTag.toString).mkString(" ")
+          println(sString)
+
+          /*val posTags = s.posTags
 
           if (tokens.length == posTags.length) {
-            val sString = tokens.zip(posTags).map(tokTag => tokTag._1.toString + "/" + tokTag._2.toString).mkString(" ")
+            val sString = tokens.zip(posTags).map(tokTag => tokTag._1.po + "/" + tokTag._2.toString).mkString(" ")
             println(sString)
-          }
+          }*/
         }
 
 //println(f.owplString(Iterable((t:Token) => t.string, (t:Token) => t.posTag)))
