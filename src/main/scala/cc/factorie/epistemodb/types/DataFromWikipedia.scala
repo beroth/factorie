@@ -12,32 +12,54 @@ import scala.collection.mutable.ArrayBuffer
  */
 object DataFromWikipedia {
 
+  def leftPatterns(token: Token): Seq[String] = {
+    val tokenBuf = new ArrayBuffer[Token]
+    var patternComplete = false
+    for(i <- 1 to 5;
+      if (token.hasPrev(i) && !patternComplete)
+    ) {
+      val prevTok = token.prev(i)
+      tokenBuf += prevTok
+      if (prevTok.posTag.categoryValue.startsWith("VB")) {
+        patternComplete = true
+      }
+    }
 
-  def getNounsAndPatterns(sentence: Sentence): Seq[String] /* Seq[(String, Seq[String])]*/ = {
-    val tokens = sentence.tokens.zipWithIndex
+    if (patternComplete) {
+      Seq(tokenBuf.reverse.map(_.string).mkString(" ") + " ARG")
+    } else {
+      Seq()
+    }
+  }
 
-    val nouns = tokens.foldLeft((false, new ArrayBuffer[ArrayBuffer[String]]))((nounBuffer, tokenIndex) => {
-      val tok = tokenIndex._1
+  def rightPatterns(sentence: Sentence, token: Token): Seq[String] = {
 
+    ???
+  }
+
+  def getNounsAndPatterns(sentence: Sentence): /*Seq[String]*/Seq[(String, Seq[String])] = {
+
+    val nouns = sentence.tokens.foldLeft((false, new ArrayBuffer[ArrayBuffer[Token]]))((nounBuffer, tok) => {
       val lastTagWasNoun = nounBuffer._1
-      val buf: ArrayBuffer[ArrayBuffer[String]] =  nounBuffer._2
+      val buf: ArrayBuffer[ArrayBuffer[Token]] =  nounBuffer._2
 
       if (tok.posTag.categoryValue.startsWith("N")) {
         val currNounBuf = if (lastTagWasNoun) {
           buf.last
         } else {
-          val nbuf = new ArrayBuffer[String]
+          val nbuf = new ArrayBuffer[Token]
           buf+=nbuf
           nbuf
         }
-        currNounBuf+=tok.string
+        currNounBuf+=tok
         (true, buf)
       } else {
         (false, buf)
       }
-    })._2
+    })._2.filter(_.length <= 3)
 
-    nouns.map(_.mkString(" ")).toSeq
+    nouns.map(tokBuf => (tokBuf.mkString(" "), leftPatterns(tokBuf.head) )).toSeq
+    ???
   }
 
   def main(args: Array[String]) : Unit = {
