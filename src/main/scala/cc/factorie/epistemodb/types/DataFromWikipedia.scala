@@ -59,7 +59,6 @@ object DataFromWikipedia {
     })._2.filter(_.length <= 3)
 
     nouns.map(tokBuf => (tokBuf.mkString(" "), leftPatterns(tokBuf.head) )).toSeq
-    ???
   }
 
   def main(args: Array[String]) : Unit = {
