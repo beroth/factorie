@@ -17,7 +17,7 @@ object DataFromWikipedia {
 
         for (s <- f.sentences) {
           val tokens = s.tokens
-          val sString = tokens.map(tok => tok.string + "/" + tok.posTag.toString).mkString(" ")
+          val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
           println(sString)
 
           /*val posTags = s.posTags
