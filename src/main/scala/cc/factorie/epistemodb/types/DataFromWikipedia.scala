@@ -14,7 +14,13 @@ object DataFromWikipedia {
       f =>
         print("DOCUMENT: ")
         println(f.name)
-        println(f.owplString(Iterable((t:Token) => t.string, (t:Token) => t.posTag)))
+
+        val sentences = f.owplString(Iterable((t:Token) => t.posTag)).split("\n\n")
+        for (s <- sentences) {
+          val tokens = s.split("\n").map(_.split("\t")(3))
+          println(tokens.mkString(" "))
+        }
+//println(f.owplString(Iterable((t:Token) => t.string, (t:Token) => t.posTag)))
     }
 
   }
