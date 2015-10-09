@@ -50,7 +50,7 @@ object DataFromWikipedia {
           val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
           println(sString)
           for (n <- getNounsAndPatterns(s)) {
-            println(s)
+            println(n)
           }
         }
     }
