@@ -196,10 +196,11 @@ such C as E
 
     for(wikiFN <- Source.fromFile(opts.wikiFilenames.value, "UTF-8").getLines();
         if !(wikiFN.trim.isEmpty || wikiFN.trim.startsWith("#"))) {
+      println("File: " + wikiFN)
       LoadWikipedia.loadFile(new File(wikiFN), "UTF-8").foreach{
         f =>
-          //print("DOCUMENT: ")
-          //println(f.name)
+          print("DOCUMENT: ")
+          println(f.name)
           for (s <- f.sentences) {
             val tokens = s.tokens
             val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
