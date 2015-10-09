@@ -132,9 +132,9 @@ object DataFromWikipedia {
         val pat = sb.toString
         if (hearstPatterns.contains(pat)) {
           if (stemming) {
-            hypernyms.+=((n.map(_.string).mkString(" "), pat))
-          } else {
             hypernyms.+=((n.map(_.lemmaString).mkString(" "), pat))
+          } else {
+            hypernyms.+=((n.map(_.string).mkString(" "), pat))
           }
         }
       }
@@ -158,9 +158,9 @@ object DataFromWikipedia {
 
         if (hearstPatterns.contains(pat)) {
           if (stemming) {
-            hypernyms.+=((n.map(_.string).mkString(" "), pat))
-          } else {
             hypernyms.+=((n.map(_.lemmaString).mkString(" "), pat))
+          } else {
+            hypernyms.+=((n.map(_.string).mkString(" "), pat))
           }
         }
       }
