@@ -19,7 +19,7 @@ class WikipediaArticleDocumentCubbie extends DocumentCubbie {
   val name = StringSlot("name")
   val date = DateSlot("date")
   val sections = CubbieListSlot("sections", () => new WikipediaArticleSectionCubbie)
-  val mentions = WikipediaMentionsSlot("mentions")
+  //val mentions = WikipediaMentionsSlot("mentions")
 
   //  val mentions = DocumentMentionsSlot("mentions")
   def :=(document:Document): this.type = {
@@ -32,7 +32,7 @@ class WikipediaArticleDocumentCubbie extends DocumentCubbie {
     sections := document.sections.collect{ case section: Section => new WikipediaArticleSectionCubbie(section) }
     //    if (document.coref ne null) mentions := document
     
-    mentions := new WikipediaMentionsCubbie(document.attr[WikipediaMentionCollection].mentions)
+    //mentions := new WikipediaMentionsCubbie(document.attr[WikipediaMentionCollection].mentions)
     
     this
   }
@@ -42,7 +42,7 @@ class WikipediaArticleDocumentCubbie extends DocumentCubbie {
     doc.attr += date.value
     assert(sections.isDefined)
     for (sc <- sections.value) doc =: sc
-    mentions.value.=:(doc)
+    //mentions.value.=:(doc)
     //    if (mentions.isDefined) doc =: mentions
     doc
   }

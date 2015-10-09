@@ -20,7 +20,7 @@ object DataFromWikipedia {
           val posTags = s.posTags
 
           if (tokens.length == posTags.length) {
-            val sString = tokens.zip(posTags).map(tokTag => tokTag._1 + "/" + tokTag._2).mkString(" ")
+            val sString = tokens.zip(posTags).map(tokTag => tokTag._1.toString + "/" + tokTag._2.toString).mkString(" ")
             println(sString)
           }
         }
