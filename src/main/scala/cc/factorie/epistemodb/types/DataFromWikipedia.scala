@@ -3,6 +3,7 @@ package cc.factorie.epistemodb.types
 import java.io.{FileWriter, BufferedWriter, File}
 
 import cc.factorie.app.nlp.Document
+import cc.factorie.app.nlp.lemma.PorterLemmatizer
 import cc.factorie.app.nlp.{Sentence, Token}
 import edu.umass.cs.iesl.serialized_wikipedia.LoadWikipedia
 
@@ -195,6 +196,8 @@ such C as E
     val contextBW = new BufferedWriter(new FileWriter(opts.contextsOut.value))
     val hypernymsBW = new BufferedWriter(new FileWriter(opts.hypernymsOut.value))
 
+    val lemmatizer = new PorterLemmatizer
+
     for(wikiFN <- Source.fromFile(opts.wikiFilenames.value, "UTF-8").getLines();
         if !(wikiFN.trim.isEmpty || wikiFN.trim.startsWith("#"))) {
       println("File: " + wikiFN)
@@ -205,7 +208,7 @@ such C as E
         LoadWikipedia.loadFile(new File(wikiFN), "UTF-8")
       }
 
-      it.foreach{
+      it.map(doc => lemmatizer.process(doc)).foreach{
         f =>
           print("DOCUMENT: ")
           println(f.name)
