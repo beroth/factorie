@@ -6,18 +6,20 @@ import cc.factorie.app.nlp.{Sentence, Token}
 import edu.umass.cs.iesl.serialized_wikipedia.LoadWikipedia
 
 import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
 
 /**
  * Created by beroth on 10/8/15.
  */
 
 class DataFromWikipediaOptions extends cc.factorie.util.DefaultCmdOptions {
-  val wikiData = new CmdOption("wikipedia", "", "FILE", "filename with parsed wikipedia")
+  val wikiFilenames = new CmdOption("wiki-files", "", "FILE", "filenames of parsed wikipedia")
   val hypernymsOut = new CmdOption("hypernyms", "", "FILE", "output filename for hypernyms")
   val contextsOut = new CmdOption("contexts", "", "FILE", "output filename for hypernyms")
 }
 
 object DataFromWikipedia {
+  val stemming = true
 
   def leftPatterns(token: Token): Seq[String] = {
     val tokenBuf = new ArrayBuffer[Token]
@@ -101,7 +103,12 @@ object DataFromWikipedia {
       }
     })._2.filter(_.length <= 3)
 
-    nouns.map(tokBuf => (tokBuf.map(_.string).mkString(" "),
+    nouns.map(tokBuf => (
+      if (stemming) {
+        tokBuf.map(_.lemmaString).mkString(" ")
+      } else {
+        tokBuf.map(_.string).mkString(" ")
+      },
       leftPatterns(tokBuf.head) ++ rightPatterns(tokBuf.last) ++ adjPatterns(tokBuf.head),
       getHypernymsAndExtractionPatterns(tokBuf.head, tokBuf.last, nouns))).toSeq
   }
@@ -122,7 +129,11 @@ object DataFromWikipedia {
 
         val pat = sb.toString
         if (hearstPatterns.contains(pat)) {
-          hypernyms.+=((n.map(_.string).mkString(" "), pat))
+          if (stemming) {
+            hypernyms.+=((n.map(_.string).mkString(" "), pat))
+          } else {
+            hypernyms.+=((n.map(_.lemmaString).mkString(" "), pat))
+          }
         }
       }
 
@@ -144,7 +155,11 @@ object DataFromWikipedia {
         }
 
         if (hearstPatterns.contains(pat)) {
-          hypernyms.+=((n.map(_.string).mkString(" "), pat))
+          if (stemming) {
+            hypernyms.+=((n.map(_.string).mkString(" "), pat))
+          } else {
+            hypernyms.+=((n.map(_.lemmaString).mkString(" "), pat))
+          }
         }
       }
     }
@@ -160,9 +175,11 @@ C [,] including E
 C [,] especially E
 such C as E
 */
-  val hearstPatterns = Set("ARG1 is a ARG2", "ARG1 is an ARG2", "ARG1 and other ARG2", "ARG1 , and other ARG2",
+  val hearstPatterns = Set("ARG1 is a ARG2", "ARG1 is an ARG2", "ARG1 are ARG2", "ARG1 and other ARG2", "ARG1 , and other ARG2",
     "ARG1 or other ARG2", "ARG1 , or other ARG2", "ARG2 such as ARG1", "ARG2 , such as ARG1", "ARG2 including ARG1",
-    "ARG2 , including ARG1", "ARG2 especially ARG1", "ARG2 , especially ARG1", "such ARG2 as ARG1")
+    "ARG2 , including ARG1", "ARG2 especially ARG1", "ARG2 , especially ARG1", "such ARG2 as ARG1",
+    "ARG2 such as the ARG1", "ARG2 , such as the ARG1", "ARG2 including the ARG1",
+    "ARG2 , including the ARG1", "ARG2 especially the ARG1", "ARG2 , especially the ARG1", "such ARG2 as the ARG1")
 
   val coordinations = Set("and", "or", "or rather", "instead of", "(")
 
@@ -176,24 +193,29 @@ such C as E
     opts.parse(args)
     val contextBW = new BufferedWriter(new FileWriter(opts.contextsOut.value))
     val hypernymsBW = new BufferedWriter(new FileWriter(opts.hypernymsOut.value))
-    LoadWikipedia.loadFile(new File(opts.wikiData.value), "UTF-8").foreach{
-      f =>
-        //print("DOCUMENT: ")
-        //println(f.name)
-        for (s <- f.sentences) {
-          val tokens = s.tokens
-          val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
-          //println(sString)
-          for ((noun, patterns, hypernyms) <- getNounsPatternsAndHypernyms(s)) {
-            for (contextPat <- patterns) {
-              contextBW.write(noun + "\t" + contextPat + "\n")
-            }
-            for ((hyp, hearstPat) <- hypernyms) {
-              hypernymsBW.write(noun + "\t" + hyp + "\t" + hearstPat + "\n")
+
+    for(wikiFN <- Source.fromFile(opts.wikiFilenames.value, "UTF-8").getLines();
+        if !(wikiFN.trim.isEmpty || wikiFN.trim.startsWith("#"))) {
+      LoadWikipedia.loadFile(new File(wikiFN), "UTF-8").foreach{
+        f =>
+          //print("DOCUMENT: ")
+          //println(f.name)
+          for (s <- f.sentences) {
+            val tokens = s.tokens
+            val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
+            //println(sString)
+            for ((noun, patterns, hypernyms) <- getNounsPatternsAndHypernyms(s)) {
+              for (contextPat <- patterns) {
+                contextBW.write(noun + "\t" + contextPat + "\n")
+              }
+              for ((hyp, hearstPat) <- hypernyms) {
+                hypernymsBW.write(noun + "\t" + hyp + "\t" + hearstPat + "\n")
+              }
             }
           }
-        }
+      }
     }
+
     contextBW.close()
     hypernymsBW.close()
   }
