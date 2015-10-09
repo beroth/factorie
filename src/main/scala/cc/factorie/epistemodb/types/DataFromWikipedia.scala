@@ -131,7 +131,7 @@ object DataFromWikipedia {
       if (distanceToTheLeft > 1 && distanceToTheLeft <= 4) {
 
         val sb = new StringBuilder("ARG2")
-        for(i <- distanceToTheLeft + 1 to 1 by -1) {
+        for(i <- distanceToTheLeft - 1 to 1 by -1) {
           sb.append(" ")
           sb.append(lastToken.prev(i).string)
         }
