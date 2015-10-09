@@ -2,6 +2,7 @@ package cc.factorie.epistemodb.types
 
 import java.io.{FileWriter, BufferedWriter, File}
 
+import cc.factorie.app.nlp.Document
 import cc.factorie.app.nlp.{Sentence, Token}
 import edu.umass.cs.iesl.serialized_wikipedia.LoadWikipedia
 
@@ -197,7 +198,14 @@ such C as E
     for(wikiFN <- Source.fromFile(opts.wikiFilenames.value, "UTF-8").getLines();
         if !(wikiFN.trim.isEmpty || wikiFN.trim.startsWith("#"))) {
       println("File: " + wikiFN)
-      LoadWikipedia.loadFile(new File(wikiFN), "UTF-8").foreach{
+
+      val it: Iterator[Document] = if (wikiFN.endsWith(".bz2")) {
+        LoadWikipedia.loadBz2File(new File(wikiFN), "UTF-8")
+      } else {
+        LoadWikipedia.loadFile(new File(wikiFN), "UTF-8")
+      }
+
+      it.foreach{
         f =>
           print("DOCUMENT: ")
           println(f.name)
