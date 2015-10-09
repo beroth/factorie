@@ -15,11 +15,16 @@ object DataFromWikipedia {
         print("DOCUMENT: ")
         println(f.name)
 
-        val sentences = f.owplString(Iterable((t:Token) => t.posTag)).split("\n\n")
-        for (s <- sentences) {
-          val tokens = s.split("\n").map(_.split("\t")(3))
-          println(tokens.mkString(" "))
+        for (s <- f.sentences) {
+          val tokens = s.tokens
+          val posTags = s.posTags
+
+          if (tokens.length == posTags.length) {
+            val sString = tokens.zip(posTags).map(tokTag => tokTag._1 + "/" + tokTag._2).mkString(" ")
+            println(sString)
+          }
         }
+
 //println(f.owplString(Iterable((t:Token) => t.string, (t:Token) => t.posTag)))
     }
 
