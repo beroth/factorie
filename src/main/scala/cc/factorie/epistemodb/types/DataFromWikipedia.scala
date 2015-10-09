@@ -1,6 +1,6 @@
 package cc.factorie.epistemodb.types
 
-import java.io.File
+import java.io.{FileWriter, BufferedWriter, File}
 
 import cc.factorie.app.nlp.{Sentence, Token}
 import edu.umass.cs.iesl.serialized_wikipedia.LoadWikipedia
@@ -10,6 +10,13 @@ import scala.collection.mutable.ArrayBuffer
 /**
  * Created by beroth on 10/8/15.
  */
+
+class DataFromWikipediaOptions extends cc.factorie.util.DefaultCmdOptions {
+  val wikiData = new CmdOption("wikipedia", "", "FILE", "filename with parsed wikipedia")
+  val hypernymsOut = new CmdOption("hypernyms", "", "FILE", "output filename for hypernyms")
+  val contextsOut = new CmdOption("contexts", "", "FILE", "output filename for hypernyms")
+}
+
 object DataFromWikipedia {
 
   def leftPatterns(token: Token): Seq[String] = {
@@ -73,7 +80,7 @@ object DataFromWikipedia {
     }
   }
 
-  def getNounsPatternsAndHypernyms(sentence: Sentence): /*Seq[String]*/Seq[(String, Seq[String], Seq[String])] = {
+  def getNounsPatternsAndHypernyms(sentence: Sentence): /*Seq[String]*/Seq[(String, Seq[String], Seq[(String, String)])] = {
 
     val nouns = sentence.tokens.foldLeft((false, new ArrayBuffer[ArrayBuffer[Token]]))((nounBuffer, tok) => {
       val lastTagWasNoun = nounBuffer._1
@@ -96,11 +103,11 @@ object DataFromWikipedia {
 
     nouns.map(tokBuf => (tokBuf.map(_.string).mkString(" "),
       leftPatterns(tokBuf.head) ++ rightPatterns(tokBuf.last) ++ adjPatterns(tokBuf.head),
-      getHypernyms(tokBuf.head, tokBuf.last, nouns))).toSeq
+      getHypernymsAndExtractionPatterns(tokBuf.head, tokBuf.last, nouns))).toSeq
   }
 
-  def getHypernyms(firstToken: Token, lastToken: Token, nouns: ArrayBuffer[ArrayBuffer[Token]]): Seq[String] = {
-    val hypernyms = new ArrayBuffer[String]()
+  def getHypernymsAndExtractionPatterns(firstToken: Token, lastToken: Token, nouns: ArrayBuffer[ArrayBuffer[Token]]): Seq[(String, String)] = {
+    val hypernyms = new ArrayBuffer[(String, String)]()
 
     for (n <- nouns) {
       val distanceToTheRight = n.head.position - lastToken.position
@@ -113,16 +120,9 @@ object DataFromWikipedia {
         }
         sb.append(" ARG2")
 
-        if (hearstPatterns.contains(sb.toString)) {
-
-          println("===")
-          println(firstToken.sentence)
-          println(sb.toString)
-          println(firstToken.string)
-          println(lastToken.string)
-          println(n.map(_.string).mkString(" "))
-
-          hypernyms += n.map(_.string).mkString(" ")
+        val pat = sb.toString
+        if (hearstPatterns.contains(pat)) {
+          hypernyms.+=((n.map(_.string).mkString(" "), pat))
         }
       }
 
@@ -137,18 +137,15 @@ object DataFromWikipedia {
         }
         sb.append(" ARG1")
 
-        if (hearstPatterns.contains(sb.toString)) {
-
-          println("===")
-          println(firstToken.sentence)
-          println(sb.toString)
-          println(firstToken.string)
-          println(lastToken.string)
-          println(n.map(_.string).mkString(" "))
-
-          hypernyms += n.map(_.string).mkString(" ")
+        val pat = if (sb.toString == "ARG2 as ARG1" && n.head.hasPrev && n.head.prev.string == "such") {
+          "such ARG2 as ARG1"
+        } else {
+          sb.toString
         }
 
+        if (hearstPatterns.contains(pat)) {
+          hypernyms.+=((n.map(_.string).mkString(" "), pat))
+        }
       }
     }
     hypernyms.toSeq
@@ -170,13 +167,16 @@ such C as E
   val coordinations = Set("and", "or", "or rather", "instead of", "(")
 
   def getNounPairs(sentence: Sentence): Seq[(String, String)] = {
-
-
     ???
   }
 
+  val opts = new DataFromWikipediaOptions
+
   def main(args: Array[String]) : Unit = {
-    LoadWikipedia.loadFile(new File(args(0)), "UTF-8").foreach{
+    opts.parse(args)
+    val contextBW = new BufferedWriter(new FileWriter(opts.contextsOut.value))
+    val hypernymsBW = new BufferedWriter(new FileWriter(opts.hypernymsOut.value))
+    LoadWikipedia.loadFile(new File(opts.wikiData.value), "UTF-8").foreach{
       f =>
         //print("DOCUMENT: ")
         //println(f.name)
@@ -184,12 +184,17 @@ such C as E
           val tokens = s.tokens
           val sString = tokens.map(tok => tok.string + "/" + tok.posTag.categoryValue.toString).mkString(" ")
           //println(sString)
-          for ((noun, patterns, hypernyms) <- getNounsPatternsAndHypernyms(s);
-          pat <- patterns) {
-            //println(noun + "\t" + pat)
+          for ((noun, patterns, hypernyms) <- getNounsPatternsAndHypernyms(s)) {
+            for (contextPat <- patterns) {
+              contextBW.write(noun + "\t" + contextPat + "\n")
+            }
+            for ((hyp, hearstPat) <- hypernyms) {
+              hypernymsBW.write(noun + "\t" + hyp + "\t" + hearstPat + "\n")
+            }
           }
         }
     }
-
+    contextBW.close()
+    hypernymsBW.close()
   }
 }
