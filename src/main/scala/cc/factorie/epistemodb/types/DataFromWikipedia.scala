@@ -18,11 +18,10 @@ class DataFromWikipediaOptions extends cc.factorie.util.DefaultCmdOptions {
   val wikiFilenames = new CmdOption("wiki-files", "", "FILE", "filenames of parsed wikipedia")
   val hypernymsOut = new CmdOption("hypernyms", "", "FILE", "output filename for hypernyms")
   val contextsOut = new CmdOption("contexts", "", "FILE", "output filename for hypernyms")
+  val stemming = new CmdOption("stemming", false, "FILE", "whether to perform stemming")
 }
 
 object DataFromWikipedia {
-  val stemming = true
-
   def leftPatterns(token: Token): Seq[String] = {
     val tokenBuf = new ArrayBuffer[Token]
     var patternComplete = false
@@ -106,7 +105,7 @@ object DataFromWikipedia {
     })._2.filter(_.length <= 3)
 
     nouns.map(tokBuf => (
-      if (stemming) {
+      if (opts.stemming.value) {
         tokBuf.map(_.lemmaString).mkString(" ")
       } else {
         tokBuf.map(_.string).mkString(" ")
@@ -131,7 +130,7 @@ object DataFromWikipedia {
 
         val pat = sb.toString
         if (hearstPatterns.contains(pat)) {
-          if (stemming) {
+          if (opts.stemming.value) {
             hypernyms.+=((n.map(_.lemmaString).mkString(" "), pat))
           } else {
             hypernyms.+=((n.map(_.string).mkString(" "), pat))
@@ -157,7 +156,7 @@ object DataFromWikipedia {
         }
 
         if (hearstPatterns.contains(pat)) {
-          if (stemming) {
+          if (opts.stemming.value) {
             hypernyms.+=((n.map(_.lemmaString).mkString(" "), pat))
           } else {
             hypernyms.+=((n.map(_.string).mkString(" "), pat))
