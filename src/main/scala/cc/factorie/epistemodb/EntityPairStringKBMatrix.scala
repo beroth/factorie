@@ -1,5 +1,7 @@
 package cc.factorie.epistemodb
 
+import java.util
+
 import com.mongodb._
 import java.io.{Writer, File}
 import scala.Predef._
@@ -217,8 +219,8 @@ object StringStringKBMatrix {
 
 
   def fromRowColumnTsvMinFreq(filename:String, minFreq: Int) : StringStringKBMatrix = {
-    val epCounter = new mutable.HashMap[Int, Int]
-    val relCounter = new mutable.HashMap[Int, Int]
+    val epCounter = new util.HashMap[Int, Int](10000000)
+    val relCounter = new util.HashMap[Int, Int](10000000)
 
     var numRead = 0
 
@@ -235,8 +237,8 @@ object StringStringKBMatrix {
         print(".")
       }
 
-      val epc = epCounter.getOrElse(ep.hashCode, 0)
-      val relc = relCounter.getOrElse(rel.hashCode, 0)
+      val epc = if (epCounter.containsKey(ep.hashCode)) epCounter.get(ep.hashCode) else 0
+      val relc = if (relCounter.containsKey(rel.hashCode)) relCounter.get(rel.hashCode) else 0
       epCounter.put(ep.hashCode, epc + 1)
       relCounter.put(rel.hashCode, epc + 1)
     })
@@ -254,8 +256,8 @@ object StringStringKBMatrix {
       val ep : String = parts(0)
       val rel : String = parts(1)
       val cellVal : Double = if (parts.length == 3) parts(2).toDouble else 1
-      if (epCounter.getOrElse(ep.hashCode, 0) >= minFreq &&
-          relCounter.getOrElse(rel.hashCode, 0) >= minFreq) {
+      if (epCounter.get(ep.hashCode) >= minFreq &&
+          relCounter.get(rel.hashCode) >= minFreq) {
         kb.set(ep, rel, cellVal)
         numRead += 1
         if (numRead % 100000 == 0) {
