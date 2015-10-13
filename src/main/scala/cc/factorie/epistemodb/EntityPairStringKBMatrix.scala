@@ -4,6 +4,7 @@ import com.mongodb._
 import java.io.{Writer, File}
 import scala.Predef._
 import scala.Some
+import scala.collection.mutable
 
 /**
  * Created by beroth on 2/6/15.
@@ -214,6 +215,52 @@ object StringStringKBMatrix {
     kb
   }
 
+
+  def fromRowColumnTsvMinFreq(filename:String, minFreq: Int) : StringStringKBMatrix = {
+    val epCounter = new mutable.HashMap[Int, Int]
+    val relCounter = new mutable.HashMap[Int, Int]
+
+    scala.io.Source.fromFile(filename).getLines.foreach(line => {
+      val parts = line.split("\t")
+      if (parts.length != 3 && parts.length != 2) {
+        throw new IllegalArgumentException("Line specifying matrix cell needs to specify row, column and (optionally) count for each line.")
+      }
+      val ep : String = parts(0)
+      val rel : String = parts(1)
+
+      val epc = epCounter.getOrElse(ep.hashCode, 0)
+      val relc = relCounter.getOrElse(rel.hashCode, 0)
+      epCounter.put(ep.hashCode, epc + 1)
+      relCounter.put(rel.hashCode, epc + 1)
+    })
+
+    val kb = new StringStringKBMatrix()
+
+    val tReadStart = System.currentTimeMillis
+    var numRead = 0
+    scala.io.Source.fromFile(filename).getLines.foreach(line => {
+      val parts = line.split("\t")
+      if (parts.length != 3 && parts.length != 2) {
+        throw new IllegalArgumentException("Line specifying matrix cell needs to specify row, column and (optionally) count for each line.")
+      }
+      val ep : String = parts(0)
+      val rel : String = parts(1)
+      val cellVal : Double = if (parts.length == 3) parts(2).toDouble else 1
+      if (epCounter.getOrElse(ep.hashCode, 0) >= minFreq &&
+          relCounter.getOrElse(rel.hashCode, 0) >= minFreq) {
+        kb.set(ep, rel, cellVal)
+        numRead += 1
+        if (numRead % 100000 == 0) {
+          val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
+          println(f"cells read per millisecond: $tRead%.4f")
+          println(f"Last row: (${ep}s)")
+          println(f"Last column: (${rel}s)")
+          println(f"Last cell value: $cellVal%.4f")
+        }
+      }
+    })
+    kb
+  }
 
   def fromRowColumnTsv(filename:String) : StringStringKBMatrix = {
     val kb = new StringStringKBMatrix()

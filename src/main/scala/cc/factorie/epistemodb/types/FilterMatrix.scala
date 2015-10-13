@@ -13,7 +13,7 @@ class FilterMatrixOptions extends cc.factorie.util.DefaultCmdOptions {
 }
 
 // #MAVEN_OPTS="-Xmx100g" m mvn exec:java -Dexec.mainClass="cc.factorie.epistemodb.types.TrainTestTacData" -Dexec.args="--matrix=/iesl/canvas/beroth/data/tmp/contexts /iesl/canvas/beroth/data/tmp/contexts.filtered"
-object TrainTestTacData {
+object FilterMatrix {
 
   val opts = new FilterMatrixOptions
 
@@ -23,7 +23,10 @@ object TrainTestTacData {
 
       val tReadStart = System.currentTimeMillis
 //      val kb = EntityRelationKBMatrix.fromTsv(opts.tacData.value).prune(2,1)
-      val kb = StringStringKBMatrix.fromRowColumnTsv(opts.matrix.value).prune(2,1)
+
+      val kb = StringStringKBMatrix.fromRowColumnTsvMinFreq(opts.matrix.value,2).prune(2,1)
+      //val kb = StringStringKBMatrix.fromRowColumnTsv(opts.matrix.value).prune(2,1)
+
       val tRead = (System.currentTimeMillis - tReadStart)/1000.0
       println(f"Reading from file and pruning took $tRead%.2f s")
 
