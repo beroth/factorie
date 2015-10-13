@@ -220,6 +220,8 @@ object StringStringKBMatrix {
     val epCounter = new mutable.HashMap[Int, Int]
     val relCounter = new mutable.HashMap[Int, Int]
 
+    var numRead = 0
+
     scala.io.Source.fromFile(filename).getLines.foreach(line => {
       val parts = line.split("\t")
       if (parts.length != 3 && parts.length != 2) {
@@ -228,16 +230,22 @@ object StringStringKBMatrix {
       val ep : String = parts(0)
       val rel : String = parts(1)
 
+      numRead += 1
+      if (numRead % 100000 == 0) {
+        print(".")
+      }
+
       val epc = epCounter.getOrElse(ep.hashCode, 0)
       val relc = relCounter.getOrElse(rel.hashCode, 0)
       epCounter.put(ep.hashCode, epc + 1)
       relCounter.put(rel.hashCode, epc + 1)
     })
+    println()
 
     val kb = new StringStringKBMatrix()
 
     val tReadStart = System.currentTimeMillis
-    var numRead = 0
+    numRead = 0
     scala.io.Source.fromFile(filename).getLines.foreach(line => {
       val parts = line.split("\t")
       if (parts.length != 3 && parts.length != 2) {

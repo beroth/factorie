@@ -24,7 +24,7 @@ object FilterMatrix {
       val tReadStart = System.currentTimeMillis
 //      val kb = EntityRelationKBMatrix.fromTsv(opts.tacData.value).prune(2,1)
 
-      val kb = StringStringKBMatrix.fromRowColumnTsvMinFreq(opts.matrix.value,2).prune(2,1)
+      val kb = StringStringKBMatrix.fromRowColumnTsvMinFreq(opts.matrix.value,5).prune(2,1)
       //val kb = StringStringKBMatrix.fromRowColumnTsv(opts.matrix.value).prune(2,1)
 
       val tRead = (System.currentTimeMillis - tReadStart)/1000.0
