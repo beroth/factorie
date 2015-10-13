@@ -230,7 +230,7 @@ object StringStringKBMatrix {
 
       val ep : String = parts(0)
       val rel : String = parts(1)
-      val cellVal : Double = if (parts.length != 3) parts(2).toDouble else 1
+      val cellVal : Double = if (parts.length == 3) parts(2).toDouble else 1
 
       kb.set(ep, rel, cellVal)
 
