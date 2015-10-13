@@ -227,20 +227,21 @@ object StringStringKBMatrix {
     scala.io.Source.fromFile(filename).getLines.foreach(line => {
       val parts = line.split("\t")
       if (parts.length != 3 && parts.length != 2) {
-        throw new IllegalArgumentException("Line specifying matrix cell needs to specify row, column and (optionally) count for each line.")
-      }
-      val ep : String = parts(0)
-      val rel : String = parts(1)
+        println("[WARNING] Line specifying matrix cell needs to specify row, column and (optionally) count for each line.")
+      } else {
+        val ep: String = parts(0)
+        val rel: String = parts(1)
 
-      numRead += 1
-      if (numRead % 100000 == 0) {
-        print(".")
-      }
+        numRead += 1
+        if (numRead % 100000 == 0) {
+          print(".")
+        }
 
-      val epc = if (epCounter.containsKey(ep.hashCode)) epCounter.get(ep.hashCode) else 0
-      val relc = if (relCounter.containsKey(rel.hashCode)) relCounter.get(rel.hashCode) else 0
-      epCounter.put(ep.hashCode, epc + 1)
-      relCounter.put(rel.hashCode, epc + 1)
+        val epc = if (epCounter.containsKey(ep.hashCode)) epCounter.get(ep.hashCode) else 0
+        val relc = if (relCounter.containsKey(rel.hashCode)) relCounter.get(rel.hashCode) else 0
+        epCounter.put(ep.hashCode, epc + 1)
+        relCounter.put(rel.hashCode, epc + 1)
+      }
     })
     println()
 
