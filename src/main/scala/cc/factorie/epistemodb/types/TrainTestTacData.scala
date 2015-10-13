@@ -23,7 +23,7 @@ object TrainTestTacData {
 
       val tReadStart = System.currentTimeMillis
 //      val kb = EntityRelationKBMatrix.fromTsv(opts.tacData.value).prune(2,1)
-      val kb = StringStringKBMatrix.fromTsv(opts.matrix.value).prune(2,1)
+      val kb = StringStringKBMatrix.fromRowColumnTsv(opts.matrix.value).prune(2,1)
       val tRead = (System.currentTimeMillis - tReadStart)/1000.0
       println(f"Reading from file and pruning took $tRead%.2f s")
 
