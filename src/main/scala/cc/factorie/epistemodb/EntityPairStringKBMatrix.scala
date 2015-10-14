@@ -209,8 +209,8 @@ object StringStringKBMatrix {
       if (numRead % 100000 == 0) {
         val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
         println(f"cells read per millisecond: $tRead%.4f")
-        println(f"Last row: (${ep}s)")
-        println(f"Last column: (${rel}s)")
+        println(f"Last row: (${ep})")
+        println(f"Last column: (${rel})")
         println(f"Last cell value: $cellVal%.4f")
       }
     })
@@ -220,7 +220,12 @@ object StringStringKBMatrix {
 
   def fromRowColumnTsvMinFreq(filename:String, minFreq: Int) : StringStringKBMatrix = {
     val epCounter = new util.HashMap[Int, Int](10000000)
-    val relCounter = new util.HashMap[Int, Int](10000000)
+    val memHack = true
+    val relCounter = if (memHack) {
+      epCounter
+    } else {
+      new util.HashMap[Int, Int](10000000)
+    }
 
     var numRead = 0
 
@@ -252,21 +257,22 @@ object StringStringKBMatrix {
     scala.io.Source.fromFile(filename).getLines.foreach(line => {
       val parts = line.split("\t")
       if (parts.length != 3 && parts.length != 2) {
-        throw new IllegalArgumentException("Line specifying matrix cell needs to specify row, column and (optionally) count for each line.")
-      }
-      val ep : String = parts(0)
-      val rel : String = parts(1)
-      val cellVal : Double = if (parts.length == 3) parts(2).toDouble else 1
-      if (epCounter.get(ep.hashCode) >= minFreq &&
+        println("[WARNING] Line specifying matrix cell needs to specify row, column and (optionally) count for each line.")
+      } else {
+        val ep: String = parts(0)
+        val rel: String = parts(1)
+        val cellVal: Double = if (parts.length == 3) parts(2).toDouble else 1
+        if (epCounter.get(ep.hashCode) >= minFreq &&
           relCounter.get(rel.hashCode) >= minFreq) {
-        kb.set(ep, rel, cellVal)
-        numRead += 1
-        if (numRead % 100000 == 0) {
-          val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
-          println(f"cells read per millisecond: $tRead%.4f")
-          println(f"Last row: (${ep}s)")
-          println(f"Last column: (${rel}s)")
-          println(f"Last cell value: $cellVal%.4f")
+          kb.set(ep, rel, cellVal)
+          numRead += 1
+          if (numRead % 100000 == 0) {
+            val tRead = numRead / (System.currentTimeMillis - tReadStart).toDouble
+            println(f"cells read per millisecond: $tRead%.4f")
+            println(f"Last row: (${ep}s)")
+            println(f"Last column: (${rel}s)")
+            println(f"Last cell value: $cellVal%.4f")
+          }
         }
       }
     })
