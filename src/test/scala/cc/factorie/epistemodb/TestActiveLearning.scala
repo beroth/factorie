@@ -68,19 +68,25 @@ class TestActiveLearning extends JUnitSuite  with util.FastLogging  {
       val inititalResultGoldAnno = modelGoldAnnotation.similaritiesAndLabels(mTrain, mTest)
       println("\nInitial MAP gold annotation: " + Evaluator.meanAveragePrecision(inititalResultGoldAnno) + "\n")
 
-      val mTrainAnno = mTrain.copy()
-      val modelAnno = UniversalSchemaModel.randomModel(numRows, numCols, dim, new Random(seedForModels))
-      val trainerForAnnotation = new RegularizedBprUniversalSchemaTrainer(regularizer, stepsize, dim, mTrainAnno, modelAnno, new Random(seedForModels))
-      trainerForAnnotation.train(10)
-      val inititalResultAnno = modelAnno.similaritiesAndLabels(mTrain, mTest)
-      println("\nInitial MAP selected rules: " + Evaluator.meanAveragePrecision(inititalResultAnno) + "\n")
+      val mTrainERIAnno = mTrain.copy()
+      val modelERIAnno = UniversalSchemaModel.randomModel(numRows, numCols, dim, new Random(seedForModels))
+      val trainerForERIAnnotation = new RegularizedBprUniversalSchemaTrainer(regularizer, stepsize, dim, mTrainERIAnno, modelERIAnno, new Random(seedForModels))
+      trainerForERIAnnotation.train(10)
+      val inititalResultERIAnno = modelERIAnno.similaritiesAndLabels(mTrain, mTest)
+      println("\nInitial MAP selected rules: " + Evaluator.meanAveragePrecision(inititalResultERIAnno) + "\n")
 
+      val mTrainSimAnno = mTrain.copy()
+      val modelSimAnno = UniversalSchemaModel.randomModel(numRows, numCols, dim, new Random(seedForModels))
+      val trainerForSimAnnotation = new RegularizedBprUniversalSchemaTrainer(regularizer, stepsize, dim, mTrainSimAnno, modelSimAnno, new Random(seedForModels))
+      trainerForSimAnnotation.train(10)
+      val inititalResultSimAnno = modelSimAnno.similaritiesAndLabels(mTrain, mTest)
+      println("\nInitial MAP selected rules: " + Evaluator.meanAveragePrecision(inititalResultSimAnno) + "\n")
 
       val mTrainNoAnno = mTrain.copy()
       val modelNoAnno = UniversalSchemaModel.randomModel(numRows, numCols, dim, new Random(seedForModels))
       val trainerNoAnno = new RegularizedBprUniversalSchemaTrainer(regularizer, stepsize, dim, mTrainNoAnno, modelNoAnno, new Random(seedForModels))
       trainerNoAnno.train(10)
-      val initialResultNoAnno = modelAnno.similaritiesAndLabels(mTrainNoAnno, mTest)
+      val initialResultNoAnno = modelERIAnno.similaritiesAndLabels(mTrainNoAnno, mTest)
       println("\nInitial MAP no annotation: " + Evaluator.meanAveragePrecision(initialResultNoAnno) + "\n")
 
 
@@ -92,13 +98,17 @@ class TestActiveLearning extends JUnitSuite  with util.FastLogging  {
       println("\nInitial MAP random rules: " + Evaluator.meanAveragePrecision(initialResultRandomAnno) + "\n")
 
 
-      assertEquals(Evaluator.meanAveragePrecision(initialResultRandomAnno), Evaluator.meanAveragePrecision(inititalResultAnno), 0.01)
+      assertEquals(Evaluator.meanAveragePrecision(initialResultRandomAnno), Evaluator.meanAveragePrecision(inititalResultERIAnno), 0.01)
 
-      var numSelectedAnnotations = 0
+      var numSelectedEriAnnotations = 0
+      var numSelectedSimAnnotations = 0
       var numRandomAnnotations = 0
 
-      var filledCellsIfHoldsHeuristic = 0
-      var filledCellsIfNotHoldsHeuristic = 0
+      var filledCellsIfHoldsEriHeuristic = 0
+      var filledCellsIfNotHoldsEriHeuristic = 0
+
+      var filledCellsIfHoldsSimHeuristic = 0
+      var filledCellsIfNotHoldsSimHeuristic = 0
 
       var filledCellsIfHoldsRandom = 0
       var filledCellsIfNotHoldsRandom = 0
@@ -111,24 +121,48 @@ class TestActiveLearning extends JUnitSuite  with util.FastLogging  {
           }
         }
 
-        val bestAntecedents = modelAnno.columnToExpectedRankingGain(mTrainAnno, targetIdx, 2).toSeq.sortBy(-_._2).slice(0,20)
+        val bestERIAntecedents = modelERIAnno.columnToExpectedRankingGain(mTrainERIAnno, targetIdx, 2).toSeq.sortBy(-_._2).slice(0,20)
         //val bestAntecedents = modelAnno.columnToFreq(mTrainAnno, targetIdx, 2).toSeq.sortBy(-_._2).slice(0,20)
-        for (antecedentIdx <- bestAntecedents.map(_._1)) {
+        for (antecedentIdx <- bestERIAntecedents.map(_._1)) {
           val relationHolds = ((antecedentIdx % numTopics) == (targetIdx % numTopics))
           if (relationHolds) {
-            for(row <- mTrainAnno.colToRows.get(antecedentIdx).get) {
+            for(row <- mTrainERIAnno.colToRows.get(antecedentIdx).get) {
               // Get all nnz rows for antecedent
-              val antecedentVal = mTrainAnno.get(row, antecedentIdx)
+              val antecedentVal = mTrainERIAnno.get(row, antecedentIdx)
 
               if (antecedentVal == 1) {
                 if (row % numTopics == antecedentIdx % numTopics) {
-                  filledCellsIfHoldsHeuristic += 1
+                  filledCellsIfHoldsEriHeuristic += 1
                 } else {
-                  filledCellsIfNotHoldsHeuristic += 1
+                  filledCellsIfNotHoldsEriHeuristic += 1
                 }
                 if (antecedentVal > mTrainRandomAnno.get(row, targetIdx)) {
-                  mTrainAnno.set(row, targetIdx, antecedentVal)
-                  numSelectedAnnotations += 1
+                  mTrainERIAnno.set(row, targetIdx, antecedentVal)
+                  numSelectedEriAnnotations += 1
+                }
+              }
+            }
+          }
+        }
+
+        val bestSimAntecedents = modelSimAnno.columnToSimilarity(mTrainSimAnno, targetIdx, 2).toSeq.sortBy(-_._2).slice(0,20)
+        //val bestAntecedents = modelAnno.columnToFreq(mTrainAnno, targetIdx, 2).toSeq.sortBy(-_._2).slice(0,20)
+        for (antecedentIdx <- bestSimAntecedents.map(_._1)) {
+          val relationHolds = ((antecedentIdx % numTopics) == (targetIdx % numTopics))
+          if (relationHolds) {
+            for(row <- mTrainSimAnno.colToRows.get(antecedentIdx).get) {
+              // Get all nnz rows for antecedent
+              val antecedentVal = mTrainSimAnno.get(row, antecedentIdx)
+
+              if (antecedentVal == 1) {
+                if (row % numTopics == antecedentIdx % numTopics) {
+                  filledCellsIfHoldsSimHeuristic += 1
+                } else {
+                  filledCellsIfNotHoldsSimHeuristic += 1
+                }
+                if (antecedentVal > mTrainRandomAnno.get(row, targetIdx)) {
+                  mTrainSimAnno.set(row, targetIdx, antecedentVal)
+                  numSelectedSimAnnotations += 1
                 }
               }
             }
@@ -160,22 +194,29 @@ class TestActiveLearning extends JUnitSuite  with util.FastLogging  {
       }
 
 
-      println("SUGGESTED HERUISTIC:")
-      println("Antecedent cells following pattern: " + filledCellsIfHoldsHeuristic)
-      println("Antecedent cells not following pattern: " + filledCellsIfNotHoldsHeuristic)
+      println("ERI HEURISTIC:")
+      println("Antecedent cells following pattern: " + filledCellsIfHoldsEriHeuristic)
+      println("Antecedent cells not following pattern: " + filledCellsIfNotHoldsEriHeuristic)
+      println("===")
+      println("Sim HEURISTIC:")
+      println("Antecedent cells following pattern: " + filledCellsIfHoldsSimHeuristic)
+      println("Antecedent cells not following pattern: " + filledCellsIfNotHoldsSimHeuristic)
       println("===")
       println("RANDOM SELECTION:")
       println("Antecedent cells following pattern: " + filledCellsIfHoldsRandom)
       println("Antecedent cells not following pattern: " + filledCellsIfNotHoldsRandom)
       println("===")
 
-      println("selected annotations: " + numSelectedAnnotations)
+      println("selected eri annotations: " + numSelectedEriAnnotations)
+      println("selected sim annotations: " + numSelectedEriAnnotations)
       println("random annotations: " + numRandomAnnotations)
 
       println("\ntraining gold annotations:")
       trainerGoldAnnotation.train(10)
-      println("\ntraining heuristic annotations:")
-      trainerForAnnotation.train(10)
+      println("\ntraining eri heuristic annotations:")
+      trainerForERIAnnotation.train(10)
+      println("\ntraining sim heuristic annotations:")
+      trainerForSimAnnotation.train(10)
       println("\ntraining random annotations:")
       trainerRandomAnnotation.train(10)
       println("\ntraining no annotations:")
@@ -183,18 +224,20 @@ class TestActiveLearning extends JUnitSuite  with util.FastLogging  {
 
       // Note: we are using mTrain here, in order to allow for annotated cells to have direct positive (or negative) impact.
       val resultGoldAnno = modelGoldAnnotation.similaritiesAndLabels(mTrain, mTest)
-      val resultAnno = modelAnno.similaritiesAndLabels(mTrain, mTest)
+      val resultEriAnno = modelERIAnno.similaritiesAndLabels(mTrain, mTest)
+      val resultSimAnno = modelSimAnno.similaritiesAndLabels(mTrain, mTest)
       val resultRandomAnno = modelRandomAnno.similaritiesAndLabels(mTrain, mTest)
       val resultNoAnno = modelNoAnno.similaritiesAndLabels(mTrain, mTest)
 
       println("MAP gold annotation: " + Evaluator.meanAveragePrecision(resultGoldAnno))
-      println("MAP selected rules: " + Evaluator.meanAveragePrecision(resultAnno))
+      println("MAP selected ERI rules: " + Evaluator.meanAveragePrecision(resultEriAnno))
+      println("MAP selected Sim rules: " + Evaluator.meanAveragePrecision(resultSimAnno))
       println("MAP random rules: " + Evaluator.meanAveragePrecision(resultRandomAnno))
       println("MAP no annotation: " + Evaluator.meanAveragePrecision(resultNoAnno))
 
-      assertTrue(Evaluator.meanAveragePrecision(resultGoldAnno) >= Evaluator.meanAveragePrecision(resultAnno))
-      assertTrue(Evaluator.meanAveragePrecision(resultAnno) > Evaluator.meanAveragePrecision(resultRandomAnno))
-      assertTrue(Evaluator.meanAveragePrecision(resultAnno) >= Evaluator.meanAveragePrecision(resultNoAnno))
+      assertTrue(Evaluator.meanAveragePrecision(resultGoldAnno) >= Evaluator.meanAveragePrecision(resultSimAnno))
+      assertTrue(Evaluator.meanAveragePrecision(resultSimAnno) > Evaluator.meanAveragePrecision(resultRandomAnno))
+      assertTrue(Evaluator.meanAveragePrecision(resultSimAnno) >= Evaluator.meanAveragePrecision(resultNoAnno))
 
       println("===")
     }

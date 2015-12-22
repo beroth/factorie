@@ -15,10 +15,7 @@ class FilterMatrixOptions extends cc.factorie.util.DefaultCmdOptions {
 
 // #MAVEN_OPTS="-Xmx100g" m mvn exec:java -Dexec.mainClass="cc.factorie.epistemodb.types.TrainTestTacData" -Dexec.args="--matrix=/iesl/canvas/beroth/data/tmp/contexts /iesl/canvas/beroth/data/tmp/contexts.filtered"
 object FilterMatrix {
-
   val opts = new FilterMatrixOptions
-
-
     def main(args: Array[String]) : Unit = {
       opts.parse(args)
 
@@ -39,5 +36,4 @@ object FilterMatrix {
 
       kb.writeToTsvFile(opts.filtered.value)
     }
-
 }
